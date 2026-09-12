@@ -1,0 +1,92 @@
+{
+ "panos": [
+  {
+   "name": "center",
+   "path": "C:/Users/USER/Downloads/skp_client/site/terrace-contemporary\\panos\\center.jpg"
+  },
+  {
+   "name": "quad_ne",
+   "path": "C:/Users/USER/Downloads/skp_client/site/terrace-contemporary\\panos\\quad_ne.jpg"
+  },
+  {
+   "name": "quad_se",
+   "path": "C:/Users/USER/Downloads/skp_client/site/terrace-contemporary\\panos\\quad_se.jpg"
+  },
+  {
+   "name": "quad_sw",
+   "path": "C:/Users/USER/Downloads/skp_client/site/terrace-contemporary\\panos\\quad_sw.jpg"
+  }
+ ],
+ "unit": "terrace-contemporary",
+ "qa": {
+  "registrar": {
+   "center": {
+    "exposure": 6,
+    "artifacts": 6,
+    "composition": 7,
+    "materials": 7,
+    "overall": 6,
+    "verdict": "FAIL",
+    "issues": [
+     "Window view clipped to near-white on right",
+     "Hallway doorway crushed to black void",
+     "Nadir floor blurry/stretched at bottom of frame",
+     "Artwork frame shows warped curved geometry",
+     "Ceiling bulkhead seam discontinuity right of TV wall",
+     "Mottled noise on stone floor surfaces"
+    ]
+   },
+   "quad_ne": {
+    "exposure": 6,
+    "artifacts": 5,
+    "composition": 7,
+    "materials": 6,
+    "overall": 6,
+    "verdict": "FAIL",
+    "issues": [
+     "Adjacent room through doorway rendered as pure black void with zero shadow detail",
+     "Rug reads as a smeared dark blob; floor texture shows streaky denoiser/motion-blur artifacts",
+     "Heavy softness/denoiser smearing on sofa upholstery and foreground floor",
+     "Mild highlight clipping on window sky and sunlit floor patch",
+     "Marble floor material appears washed out and streaky rather than crisp stone"
+    ]
+   },
+   "quad_se": {
+    "exposure": 5,
+    "artifacts": 4,
+    "composition": 6,
+    "materials": 5,
+    "overall": 5,
+    "verdict": "FAIL",
+    "issues": [
+     "Windows and adjacent floor clipped to pure white, overall overexposed",
+     "Marble floor heavily smeared/blurred, worst at nadir",
+     "Doorway interior is dark mush with no readable detail",
+     "Rug geometry warped into unnatural curve",
+     "Upholstery flat and textureless under hot lighting",
+     "Low contrast wash reduces material separation across scene"
+    ]
+   },
+   "quad_sw": {
+    "exposure": 7,
+    "artifacts": 6,
+    "composition": 8,
+    "materials": 6,
+    "overall": 7,
+    "verdict": "PASS",
+    "issues": [
+     "nadir floor shows smeared/streaked marble texture typical of equirect projection artifacts",
+     "dark doorway void at left-center is nearly black with muddy, blurred interior detail",
+     "slight highlight blowout on sunlit floor patch and window sill near right",
+     "window wall glass framing on right reads slightly ambiguous with flat white outdoor view"
+    ]
+   }
+  },
+  "fails": [
+   "center",
+   "quad_ne",
+   "quad_se"
+  ],
+  "model": "z-ai/glm-5.3-flash"
+ }
+}

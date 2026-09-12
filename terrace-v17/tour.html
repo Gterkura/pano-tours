@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terrace — 6-Room 360° Tour (12 Sep 2026)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+<style>
+  body { margin:0; background:#0b0e11; color:#e8e6e1; font-family:'Segoe UI',system-ui,sans-serif; }
+  #panorama { width:100vw; height:70vh; }
+  header { padding:14px 20px; display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:1.15rem; font-weight:600; letter-spacing:.02em; }
+  header span { color:#8a9099; font-size:.8rem; }
+  .note { padding:0 20px 8px; color:#c9a86a; font-size:.76rem; max-width:1000px; }
+  #thumbs { display:flex; gap:12px; padding:10px 20px 4px; overflow-x:auto; }
+  .thumb { cursor:pointer; border:2px solid transparent; border-radius:8px; overflow:hidden; flex:0 0 auto; width:180px; transition:border .15s; position:relative; }
+  .thumb:hover { border-color:#c9a86a; }
+  .thumb.active { border-color:#c9a86a; }
+  .thumb img { width:180px; height:90px; object-fit:cover; display:block; }
+  .thumb p { margin:6px 8px; font-size:.75rem; color:#cfd3d8; display:flex; justify-content:space-between; gap:6px; }
+  .thumb .sc { color:#8a9099; font-size:.68rem; }
+  footer { padding:12px 20px 34px; color:#5d646d; font-size:.72rem; max-width:1000px; }
+  a { color:#c9a86a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Terrace — 6-Room Tour</h1>
+  <span>12 Sep 2026 · 4096×2048 equirectangular</span>
+</header>
+<div class="note">
+  Scenes ordered best-first. The number on each thumbnail is the internal QA score (1–10) from the
+  fleet vision registrar; the internal gate is 7 and <b>no scene reached it</b> — so treat this as a
+  working review, not approved output. For comparison, the original 4-scene tour is
+  <a href="../terrace-contemporary/tour.html">here</a>.
+</div>
+<div id="panorama"></div>
+<div id="thumbs"></div>
+<footer>UsheredWorlds Limited — drag to look around · scroll to zoom · click a thumbnail to jump</footer>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script>
+const scenes = {
+  "bathroom_2":     { "label": "Bathroom (upper)", "panorama": "panos/bathroom_2.jpg",     "score": 5, "autoRotate": -1.5 },
+  "bedroom_2":      { "label": "Bedroom 2",        "panorama": "panos/bedroom_2.jpg",      "score": 4 },
+  "living_room":    { "label": "Living room",      "panorama": "panos/living_room.jpg",    "score": 4, "autoRotate": -1.5 },
+  "bathroom":       { "label": "Bathroom",         "panorama": "panos/bathroom.jpg",       "score": 4 },
+  "bedroom":        { "label": "Bedroom",          "panorama": "panos/bedroom.jpg",        "score": 3 },
+  "master_bedroom": { "label": "Master bedroom",   "panorama": "panos/master_bedroom.jpg", "score": 2 }
+};
+const first = Object.keys(scenes)[0];
+let viewer = pannellum.viewer('panorama', {
+  "type": "equirectangular",
+  "panorama": scenes[first].panorama,
+  "autoLoad": true,
+  "autoRotate": scenes[first].autoRotate || 0,
+  "hfov": 110,
+  "showZoomCtrl": true,
+  "compass": false
+});
+window.jumpTo = function(key) {
+  const s = scenes[key];
+  viewer.destroy();
+  viewer = pannellum.viewer('panorama', {
+    "type": "equirectangular",
+    "panorama": s.panorama,
+    "autoLoad": true,
+    "autoRotate": s.autoRotate || 0,
+    "hfov": 110
+  });
+  document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('active', t.dataset.key === key));
+};
+const thumbsDiv = document.getElementById('thumbs');
+for (const [key, s] of Object.entries(scenes)) {
+  const d = document.createElement('div');
+  d.className = 'thumb' + (key === first ? ' active' : '');
+  d.dataset.key = key;
+  d.onclick = () => jumpTo(key);
+  d.innerHTML = `<img src="thumbs/${key}.jpg" alt="${s.label}"><p><span>${s.label}</span><span class="sc">${s.score}/10</span></p>`;
+  thumbsDiv.appendChild(d);
+}
+</script>
+</body>
+</html>

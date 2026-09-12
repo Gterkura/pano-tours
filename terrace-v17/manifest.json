@@ -1,0 +1,49 @@
+{
+ "unit": "terrace-v17",
+ "generated": "2026-09-12",
+ "gate": "7 (none passed)",
+ "panos": [
+  {
+   "name": "bathroom_2",
+   "label": "Bathroom (upper)",
+   "score": 5,
+   "pano": "bathroom_2.jpg",
+   "thumb": "bathroom_2.jpg"
+  },
+  {
+   "name": "bedroom_2",
+   "label": "Bedroom 2",
+   "score": 4,
+   "pano": "bedroom_2.jpg",
+   "thumb": "bedroom_2.jpg"
+  },
+  {
+   "name": "living_room",
+   "label": "Living room",
+   "score": 4,
+   "pano": "living_room.jpg",
+   "thumb": "living_room.jpg"
+  },
+  {
+   "name": "bathroom",
+   "label": "Bathroom",
+   "score": 4,
+   "pano": "bathroom.jpg",
+   "thumb": "bathroom.jpg"
+  },
+  {
+   "name": "bedroom",
+   "label": "Bedroom",
+   "score": 3,
+   "pano": "bedroom.jpg",
+   "thumb": "bedroom.jpg"
+  },
+  {
+   "name": "master_bedroom",
+   "label": "Master bedroom",
+   "score": 2,
+   "pano": "master_bedroom.jpg",
+   "thumb": "master_bedroom.jpg"
+  }
+ ]
+}
