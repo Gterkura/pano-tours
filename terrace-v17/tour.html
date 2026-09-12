@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Terrace — 6-Room 360° Tour (12 Sep 2026)</title>
+<title>Terrace — 6-Room 360° Tour (12 Sep 2026, rotation fixed)</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
 <style>
   body { margin:0; background:#0b0e11; color:#e8e6e1; font-family:'Segoe UI',system-ui,sans-serif; }
@@ -29,7 +29,7 @@
   <span>12 Sep 2026 · 4096×2048 equirectangular</span>
 </header>
 <div class="note">
-  Scenes ordered best-first. The number on each thumbnail is the internal QA score (1–10) from the
+  Scenes ordered best-first. Rotation axis corrected (pano convention) — republished 12 Sep 2026. The number on each thumbnail is the internal QA score (1–10) from the
   fleet vision registrar; the internal gate is 7 and <b>no scene reached it</b> — so treat this as a
   working review, not approved output. For comparison, the original 4-scene tour is
   <a href="../terrace-contemporary/tour.html">here</a>.
@@ -40,12 +40,12 @@
 <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 <script>
 const scenes = {
-  "bathroom_2":     { "label": "Bathroom (upper)", "panorama": "panos/bathroom_2.jpg",     "score": 5, "autoRotate": -1.5 },
-  "bedroom_2":      { "label": "Bedroom 2",        "panorama": "panos/bedroom_2.jpg",      "score": 4 },
+  "bathroom_2":     { "label": "Bathroom (upper)", "panorama": "panos/bathroom_2.jpg",     "score": 6, "autoRotate": -1.5 },
+  "bathroom":       { "label": "Bathroom",         "panorama": "panos/bathroom.jpg",       "score": 5 },
+  "bedroom":        { "label": "Bedroom",          "panorama": "panos/bedroom.jpg",        "score": 5 },
+  "bedroom_2":      { "label": "Bedroom 2",        "panorama": "panos/bedroom_2.jpg",      "score": 5 },
   "living_room":    { "label": "Living room",      "panorama": "panos/living_room.jpg",    "score": 4, "autoRotate": -1.5 },
-  "bathroom":       { "label": "Bathroom",         "panorama": "panos/bathroom.jpg",       "score": 4 },
-  "bedroom":        { "label": "Bedroom",          "panorama": "panos/bedroom.jpg",        "score": 3 },
-  "master_bedroom": { "label": "Master bedroom",   "panorama": "panos/master_bedroom.jpg", "score": 2 }
+  "master_bedroom": { "label": "Master bedroom",   "panorama": "panos/master_bedroom.jpg", "score": 4 }
 };
 const first = Object.keys(scenes)[0];
 let viewer = pannellum.viewer('panorama', {
