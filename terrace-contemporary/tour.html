@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terrace Contemporary — 360° Tour</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+<style>
+  body { margin:0; background:#0b0e11; color:#e8e6e1; font-family:'Segoe UI',system-ui,sans-serif; }
+  #panorama { width:100vw; height:72vh; }
+  header { padding:14px 20px; display:flex; justify-content:space-between; align-items:baseline; }
+  header h1 { margin:0; font-size:1.15rem; font-weight:600; letter-spacing:.02em; }
+  header span { color:#8a9099; font-size:.8rem; }
+  #thumbs { display:flex; gap:12px; padding:14px 20px; overflow-x:auto; }
+  .thumb { cursor:pointer; border:2px solid transparent; border-radius:8px; overflow:hidden; flex:0 0 auto; width:180px; transition:border .15s; }
+  .thumb:hover { border-color:#c9a86a; }
+  .thumb.active { border-color:#c9a86a; }
+  .thumb img { width:180px; height:90px; object-fit:cover; display:block; }
+  .thumb p { margin:6px 8px; font-size:.75rem; color:#cfd3d8; }
+  footer { padding:10px 20px; color:#5d646d; font-size:.72rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Terrace Contemporary</h1>
+  <span>360° Virtual Tour</span>
+</header>
+<div id="panorama"></div>
+<div id="thumbs"></div>
+<footer>UsheredWorlds Limited — drag to look around · scroll to zoom · click a thumbnail to jump</footer>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script>
+const scenes = {
+  "center":   { "label": "Living / Dining",  "panorama": "panos/center.jpg",
+                "autoRotate": -2 },
+  "quad_ne":  { "label": "Dining Detail",    "panorama": "panos/quad_ne.jpg" },
+  "quad_se":  { "label": "Lounge View",      "panorama": "panos/quad_se.jpg" },
+  "quad_sw":  { "label": "Lounge Opposite",  "panorama": "panos/quad_sw.jpg" },
+};
+const first = Object.keys(scenes)[0];
+const viewer = pannellum.viewer('panorama', {
+  "type": "equirectangular",
+  "panorama": scenes[first].panorama,
+  "autoLoad": true,
+  "autoRotate": scenes[first].autoRotate || 0,
+  "hfov": 110,
+  "showZoomCtrl": true,
+  "compass": false,
+});
+window.jumpTo = function(key) {
+  viewer.loadScene ? null : null;
+  viewer.destroy();
+  const s = scenes[key];
+  const v2 = pannellum.viewer('panorama', {
+    "type": "equirectangular",
+    "panorama": s.pano || s.panorama,
+    "autoLoad": true,
+    "autoRotate": s.autoRotate || 0,
+    "hfov": 110,
+  });
+  window.viewer = v2;
+  document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('active', t.dataset.key === key));
+};
+const thumbsDiv = document.getElementById('thumbs');
+for (const [key, s] of Object.entries(scenes)) {
+  const d = document.createElement('div');
+  d.className = 'thumb' + (key === first ? ' active' : '');
+  d.dataset.key = key;
+  d.onclick = () => jumpTo(key);
+  d.innerHTML = `<img src="thumbs/${key}.jpg" alt="${s.label}"><p>${s.label}</p>`;
+  thumbsDiv.appendChild(d);
+}
+</script>
+</body>
+</html>
