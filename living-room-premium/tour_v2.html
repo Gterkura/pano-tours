@@ -40,8 +40,8 @@
 import * as THREE from 'three';
 
 const DEPTH_MAX_METERS = 15.0;        // matches MapRange in setup_pano_render.py
-const PARALLAX_X = 0.25;              // max lateral head shift (meters, world-ish)
-const PARALLAX_Y = 0.15;
+const PARALLAX_X = 0.22;              // max lateral head shift (meters, world-ish)
+const PARALLAX_Y = 0.13;
 
 const app = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -50,13 +50,13 @@ renderer.setSize(innerWidth, innerHeight);
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 50);
+const cam = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.05, 50);
 
 // --- load RGB + RGBD depth
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_room.jpg?v=20260914e'),
-  loader.loadAsync('panos/depth_rgbd.png?v=20260914e')
+  loader.loadAsync('panos/living_room.jpg?v=20260914f'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914f')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
 depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
@@ -71,7 +71,7 @@ const uniforms = {
   uParallax:{value: new THREE.Vector2(0,0)},
   uYaw:    {value: 0.0},
   uPitch:  {value: 0.0},
-  uFov:    {value: 75.0},
+  uFov:    {value: 68.0},
   uAspect: {value: innerWidth/innerHeight},
   uFwd:    {value: new THREE.Vector3(0,0,-1)},
   uRight:  {value: new THREE.Vector3(1,0,0)},
@@ -118,12 +118,12 @@ const mat = new THREE.ShaderMaterial({
       // parallax offset in pano-uv space: shift uv opposite to head motion,
       // scaled by proximity (closer surface = more shift)
       float proximity = 1.0 - sceneD;           // near = 1
-      vec2 shift = -uParallax * proximity * 0.06; // tunable
+      vec2 shift = -uParallax * proximity * 0.04; // tunable
       vec2 uv = baseUv + shift;
       // iterate once more at shifted uv for consistency
       float d2 = decodeDepth(uv);
       proximity = 1.0 - d2;
-      uv = baseUv - uParallax * proximity * 0.06;
+      uv = baseUv - uParallax * proximity * 0.04;
       vec3 col = texture2D(uPano, uv).rgb;
       gl_FragColor = vec4(col, 1.0);
     }`
@@ -158,11 +158,11 @@ addEventListener('mousemove', e=>{
   targetPy = (e.clientY/innerHeight - .5) * 2 * PARALLAX_Y;
 });
 // pinch zoom
-let pinch0=0, fov0=75;
+let pinch0=0, fov0=68;
 el.addEventListener('touchstart', e=>{ if(e.touches.length===2){ pinch0=dist(e); fov0=uniforms.uFov.value; }}, {passive:true});
-el.addEventListener('touchmove', e=>{ if(e.touches.length===2){ uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0/dist(e), 40, 95);} }, {passive:true});
+el.addEventListener('touchmove', e=>{ if(e.touches.length===2){ uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0/dist(e), 42, 85);} }, {passive:true});
 function dist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
-addEventListener('wheel', e=>{ uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY*0.02, 40, 95); });
+addEventListener('wheel', e=>{ uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY*0.02, 42, 85); });
 
 // --- hotspots (3D-anchored: yaw/pitch on the pano sphere)
 const HOTSPOTS = [
