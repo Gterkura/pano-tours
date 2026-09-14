@@ -55,8 +55,8 @@ const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 50);
 // --- load RGB + RGBD depth
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_room.jpg?v=20260914d'),
-  loader.loadAsync('panos/depth_rgbd.png?v=20260914d')
+  loader.loadAsync('panos/living_room.jpg?v=20260914e'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914e')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
 depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
@@ -90,6 +90,7 @@ const mat = new THREE.ShaderMaterial({
     uniform vec2 uParallax;
     uniform float uYaw, uPitch, uFov, uAspect, uDepthMax;
     uniform vec3 uFwd, uRight, uUp;
+    uniform vec3 uFwd, uRight, uUp;
 
     // decode 16-bit depth from RG channels
     float decodeDepth(vec2 uv){
@@ -100,8 +101,8 @@ const mat = new THREE.ShaderMaterial({
     // sample depth with ray-march (parallax occlusion mapping style):
     // walk along the view ray in depth space, find surface hit
     vec2 panoUvFor(vec3 dir){
-      float u = atan(dir.x, dir.z) / 6.28318530718 + 0.5;
-      float v = 0.5 - asin(clamp(dir.y,-1.0,1.0)) / 3.14159265;
+      float u = 0.5 - atan(dir.x, dir.z) / 6.28318530718;
+      float v = 0.5 + asin(clamp(dir.y,-1.0,1.0)) / 3.14159265;
       return vec2(u, v);
     }
     void main(){
