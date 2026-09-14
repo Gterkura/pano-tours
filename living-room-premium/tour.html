@@ -55,8 +55,8 @@ const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 50);
 // --- load RGB + RGBD depth
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_room.jpg'),
-  loader.loadAsync('panos/depth_rgbd.png')
+  loader.loadAsync('panos/living_room.jpg?v=20260914b'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914b')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
 depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
