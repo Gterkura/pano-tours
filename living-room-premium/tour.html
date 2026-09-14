@@ -55,8 +55,8 @@ const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 50);
 // --- load RGB + RGBD depth
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_room.jpg?v=20260914b'),
-  loader.loadAsync('panos/depth_rgbd.png?v=20260914b')
+  loader.loadAsync('panos/living_room.jpg?v=20260914c'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914c')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
 depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
@@ -73,6 +73,9 @@ const uniforms = {
   uPitch:  {value: 0.0},
   uFov:    {value: 75.0},
   uAspect: {value: innerWidth/innerHeight},
+  uFwd:    {value: new THREE.Vector3(0,0,-1)},
+  uRight:  {value: new THREE.Vector3(1,0,0)},
+  uUp:     {value: new THREE.Vector3(0,1,0)},
   uDepthMax:{value: DEPTH_MAX_METERS},
 };
 const mat = new THREE.ShaderMaterial({
@@ -101,15 +104,10 @@ const mat = new THREE.ShaderMaterial({
       return vec2(u, v);
     }
     void main(){
-      // build camera ray from yaw/pitch + fov
+      // build camera ray via proper orthonormal basis uniforms
       vec2 ndc = vUv * 2.0 - 1.0;
       float tanF = tan(radians(uFov) * 0.5);
-      vec3 dir = normalize(vec3(ndc.x * tanF * uAspect, ndc.y * tanF, -1.0));
-      // apply pitch then yaw
-      float cp = cos(uPitch), sp = sin(uPitch);
-      dir = vec3(dir.x, dir.y * cp - dir.z * sp, dir.y * sp + dir.z * cp);
-      float cy = cos(uYaw), sy = sin(uYaw);
-      dir = vec3(dir.x * cy + dir.z * sy, dir.y, -dir.x * sy + dir.z * cy);
+      vec3 dir = normalize(uFwd + uRight * (ndc.x * tanF * uAspect) + uUp * (ndc.y * tanF));
 
       // parallax: offset ray origin laterally; ray-march depth
       // (8 steps occlusion-style)
@@ -208,6 +206,11 @@ function tick(){
   px += (targetPx-px)*k; py += (targetPy-py)*k;
   uniforms.uYaw.value = yaw;
   uniforms.uPitch.value = pitch;
+  // proper quaternion basis: yaw around world Y, pitch around local X
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  uniforms.uFwd.value.set(0,0,-1).applyQuaternion(q);
+  uniforms.uRight.value.set(1,0,0).applyQuaternion(q);
+  uniforms.uUp.value.set(0,1,0).applyQuaternion(q);
   uniforms.uParallax.value.set(px, py);
   hotspots.forEach(projectHotspot);
   renderer.render(scene, orthoCam);
