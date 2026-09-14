@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Terrace Residence · USHEREDWORLDS 360°</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .brand{position:fixed;top:18px;left:22px;z-index:10;color:#fff;pointer-events:none;
+    text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  .brand h1{margin:0;font-size:20px;letter-spacing:3px;font-weight:600}
+  .brand p{margin:4px 0 0;font-size:10px;letter-spacing:4px;opacity:.75}
+  .wm{position:fixed;bottom:14px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.45);
+    font-size:9px;letter-spacing:2.5px;pointer-events:none}
+  .hint{position:fixed;bottom:40px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.55);
+    font-size:11px;pointer-events:none;transition:opacity 1s}
+  .hs{position:fixed;z-index:5;transform:translate(-50%,-50%);pointer-events:auto}
+  .hs .dot{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.85);
+    background:rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:15px;transition:transform .2s;cursor:pointer}
+  .hs .dot:hover{transform:scale(1.2)}
+  .hs .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;
+    background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;
+    opacity:0;transition:opacity .2s}
+  .hs:hover .lbl{opacity:1}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="brand"><h1>TERRACE RESIDENCE</h1><p>USHEREDWORLDS · 360° EXPERIENCE</p></div>
+<div class="hint" id="hint">Drag to look around · Move finger/mouse up or down for depth parallax</div>
+<div class="wm">CONFIDENTIAL — PROPRIETARY SAMPLE · © USHEREDWORLDS LIMITED</div>
+<div id="hotspots"></div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const DEPTH_MAX_METERS = 15.0;        // matches MapRange in setup_pano_render.py
+const PARALLAX_X = 0.25;              // max lateral head shift (meters, world-ish)
+const PARALLAX_Y = 0.15;
+
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 50);
+
+// --- load RGB + RGBD depth
+const loader = new THREE.TextureLoader();
+const [panoTex, depthTex] = await Promise.all([
+  loader.loadAsync('panos/living_room.jpg?v=20260914d'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914d')
+]);
+panoTex.colorSpace = THREE.SRGBColorSpace;
+depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
+
+// --- full-screen quad with depth-parallax ray-march shader
+// Instead of a sphere mesh, we render a fullscreen quad and reconstruct
+// the pano ray per pixel, offsetting the ray origin by the parallax
+// vector, then ray-march the depth field.
+const uniforms = {
+  uPano:   {value: panoTex},
+  uDepth:  {value: depthTex},
+  uParallax:{value: new THREE.Vector2(0,0)},
+  uYaw:    {value: 0.0},
+  uPitch:  {value: 0.0},
+  uFov:    {value: 75.0},
+  uAspect: {value: innerWidth/innerHeight},
+  uFwd:    {value: new THREE.Vector3(0,0,-1)},
+  uRight:  {value: new THREE.Vector3(1,0,0)},
+  uUp:     {value: new THREE.Vector3(0,1,0)},
+  uDepthMax:{value: DEPTH_MAX_METERS},
+};
+const mat = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader:`
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader:`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uPano, uDepth;
+    uniform vec2 uParallax;
+    uniform float uYaw, uPitch, uFov, uAspect, uDepthMax;
+    uniform vec3 uFwd, uRight, uUp;
+
+    // decode 16-bit depth from RG channels
+    float decodeDepth(vec2 uv){
+      vec4 t = texture2D(uDepth, uv);
+      float d = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
+      return d; // 0..1, 1.0 = far/sky
+    }
+    // sample depth with ray-march (parallax occlusion mapping style):
+    // walk along the view ray in depth space, find surface hit
+    vec2 panoUvFor(vec3 dir){
+      float u = atan(dir.x, dir.z) / 6.28318530718 + 0.5;
+      float v = 0.5 - asin(clamp(dir.y,-1.0,1.0)) / 3.14159265;
+      return vec2(u, v);
+    }
+    void main(){
+      // build camera ray via proper orthonormal basis uniforms
+      vec2 ndc = vUv * 2.0 - 1.0;
+      float tanF = tan(radians(uFov) * 0.5);
+      vec3 dir = normalize(uFwd + uRight * (ndc.x * tanF * uAspect) + uUp * (ndc.y * tanF));
+
+      // parallax: offset ray origin laterally; ray-march depth
+      // (8 steps occlusion-style)
+      vec2 baseUv = panoUvFor(dir);
+      float sceneD = decodeDepth(baseUv);       // 0..1 (1=sky)
+      vec3 ro = vec3(uParallax.x, uParallax.y, 0.0); // head position (meters-ish)
+      // parallax offset in pano-uv space: shift uv opposite to head motion,
+      // scaled by proximity (closer surface = more shift)
+      float proximity = 1.0 - sceneD;           // near = 1
+      vec2 shift = -uParallax * proximity * 0.06; // tunable
+      vec2 uv = baseUv + shift;
+      // iterate once more at shifted uv for consistency
+      float d2 = decodeDepth(uv);
+      proximity = 1.0 - d2;
+      uv = baseUv - uParallax * proximity * 0.06;
+      vec3 col = texture2D(uPano, uv).rgb;
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat);
+const orthoCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+scene.add(quad);
+
+// --- gestures: Option 1 — horizontal drag = rotate, vertical drag = parallax
+let dragging=false, lastX=0, lastY=0, targetYaw=0, targetPitch=0, targetPx=0, targetPy=0;
+let parallaxMode = false;
+const el = renderer.domElement;
+function down(x,y){ dragging=true; lastX=x; lastY=y; }
+function move(x,y){
+  if(!dragging) return;
+  const dx = x-lastX, dy = y-lastY;
+  lastX=x; lastY=y;
+  // horizontal drag -> yaw always
+  targetYaw -= dx * 0.0032;
+  // vertical drag -> pitch (small) AND parallax (Option 1)
+  targetPitch = THREE.MathUtils.clamp(targetPitch + dy*0.0016, -0.6, 0.6);
+  targetPy = THREE.MathUtils.clamp(targetPy + dy*0.0004, -PARALLAX_Y, PARALLAX_Y);
+}
+function up(){ dragging=false; }
+el.addEventListener('pointerdown', e=>{down(e.clientX,e.clientY); document.getElementById('hint').style.opacity=0;});
+addEventListener('pointermove', e=>move(e.clientX,e.clientY));
+addEventListener('pointerup', up);
+// mouse hover parallax (desktop): subtle X/Y shift on hover
+addEventListener('mousemove', e=>{
+  if(dragging || e.pointerType==='touch') return;
+  targetPx = (e.clientX/innerWidth - .5) * 2 * PARALLAX_X;
+  targetPy = (e.clientY/innerHeight - .5) * 2 * PARALLAX_Y;
+});
+// pinch zoom
+let pinch0=0, fov0=75;
+el.addEventListener('touchstart', e=>{ if(e.touches.length===2){ pinch0=dist(e); fov0=uniforms.uFov.value; }}, {passive:true});
+el.addEventListener('touchmove', e=>{ if(e.touches.length===2){ uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0/dist(e), 40, 95);} }, {passive:true});
+function dist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+addEventListener('wheel', e=>{ uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY*0.02, 40, 95); });
+
+// --- hotspots (3D-anchored: yaw/pitch on the pano sphere)
+const HOTSPOTS = [
+  {yaw: Math.atan2(-1,0)/*east media wall*/, pitch:0.0, icon:'📺', label:'Media Wall · News'},
+  {yaw: 2.2, pitch:0.15, icon:'🛋️', label:'Lounge'},
+  {yaw: -1.4, pitch:0.2, icon:'💡', label:'Chandelier'},
+  {yaw: 0.6, pitch:-0.2, icon:'🚪', label:'Corridor'},
+];
+const hsWrap = document.getElementById('hotspots');
+const hotspots = HOTSPOTS.map(h=>{
+  const d = document.createElement('div');
+  d.className='hs';
+  d.innerHTML = `<div class="dot">${h.icon}</div><div class="lbl">${h.label}</div>`;
+  hsWrap.appendChild(d);
+  return {el:d, ...h};
+});
+
+function projectHotspot(h){
+  // visible if within camera view
+  let dy = h.yaw - uniforms.uYaw.value;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
+  const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value)/2);
+  const sx = (dx/(tanF*uniforms.uAspect) + 1)/2;
+  const sy = (1 - dyp/tanF)/2;
+  const visible = sx>0.02 && sx<0.98 && sy>0.02 && sy<0.98;
+  h.el.style.display = visible?'block':'none';
+  if(visible){
+    h.el.style.left = (sx*innerWidth)+'px';
+    h.el.style.top = (sy*innerHeight)+'px';
+  }
+}
+
+// --- loop
+let yaw=0, pitch=0, px=0, py=0;
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), .05);
+  const k = 1 - Math.pow(0.0001, dt);   // smooth damp
+  yaw += (targetYaw-yaw)*k; pitch += (targetPitch-pitch)*k;
+  px += (targetPx-px)*k; py += (targetPy-py)*k;
+  uniforms.uYaw.value = yaw;
+  uniforms.uPitch.value = pitch;
+  // proper quaternion basis: yaw around world Y, pitch around local X
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  uniforms.uFwd.value.set(0,0,-1).applyQuaternion(q);
+  uniforms.uRight.value.set(1,0,0).applyQuaternion(q);
+  uniforms.uUp.value.set(0,1,0).applyQuaternion(q);
+  uniforms.uParallax.value.set(px, py);
+  hotspots.forEach(projectHotspot);
+  renderer.render(scene, orthoCam);
+}
+tick();
+
+addEventListener('resize', ()=>{
+  renderer.setSize(innerWidth, innerHeight);
+  cam.aspect = uniforms.uAspect.value = innerWidth/innerHeight;
+  uniforms.uFov.value = uniforms.uFov.value; // keep
+  renderer.render(scene, orthoCam);
+});
+</script>
+</body>
+</html>
