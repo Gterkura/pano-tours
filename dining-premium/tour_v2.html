@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Terrace Residence — Dining · USHEREDWORLDS 360°</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .brand{position:fixed;top:18px;left:22px;z-index:10;color:#fff;pointer-events:none;
+    text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  .brand h1{margin:0;font-size:20px;letter-spacing:3px;font-weight:600}
+  .brand p{margin:4px 0 0;font-size:10px;letter-spacing:4px;opacity:.75}
+  .wm{position:fixed;bottom:14px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.45);
+    font-size:9px;letter-spacing:2.5px;pointer-events:none}
+  .hint{position:fixed;bottom:40px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.55);
+    font-size:11px;pointer-events:none;transition:opacity 1s}
+  .hs{position:fixed;z-index:5;transform:translate(-50%,-50%);pointer-events:auto}
+  .hs .dot{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.85);
+    background:rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:15px;transition:transform .2s;cursor:pointer}
+  .hs .dot:hover{transform:scale(1.2)}
+  .hs .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;
+    background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;
+    opacity:0;transition:opacity .2s}
+  .hs:hover .lbl{opacity:1}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="brand"><h1>TERRACE RESIDENCE</h1><p>DINING · USHEREDWORLDS 360° EXPERIENCE</p></div>
+<div class="hint" id="hint">Drag to look — flick and it glides · scroll/pinch to zoom · move up/down for depth parallax</div>
+<div class="wm">CONFIDENTIAL — PROPRIETARY SAMPLE · © USHEREDWORLDS LIMITED</div>
+<div id="hotspots"></div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const DEPTH_MAX_METERS = 15.0;        // matches the 15 m MapRange in the depth pass
+const PARALLAX_X = 0.22;              // max lateral head shift (meters, world-ish)
+const PARALLAX_Y = 0.13;
+
+// --- feel/controls (matched to the reference tours measured 2026-09-14)
+const FOV_DEFAULT = 110.0;
+const FOV_MIN     = 60.0;
+const FOV_MAX     = 140.0;
+const PITCH_LIMIT = 1.28;    // ~73deg
+const DRAG_YAW    = 0.0032;
+const INERTIA_TAU = 0.38;
+const AUTOROTATE_DELAY = 6.0;
+const AUTOROTATE_SPEED = 8.0;
+
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(FOV_DEFAULT, innerWidth/innerHeight, 0.05, 50);
+
+const loader = new THREE.TextureLoader();
+const [panoTex, depthTex] = await Promise.all([
+  loader.loadAsync('panos/dining.jpg?v=20260915d'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260915d')
+]);
+panoTex.colorSpace = THREE.SRGBColorSpace;
+depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
+
+const uniforms = {
+  uPano:   {value: panoTex},
+  uDepth:  {value: depthTex},
+  uParallax:{value: new THREE.Vector2(0,0)},
+  uYaw:    {value: 0.0},
+  uPitch:  {value: 0.0},
+  uFov:    {value: FOV_DEFAULT},
+  uAspect: {value: innerWidth/innerHeight},
+  uFwd:    {value: new THREE.Vector3(0,0,-1)},
+  uRight:  {value: new THREE.Vector3(1,0,0)},
+  uUp:     {value: new THREE.Vector3(0,1,0)},
+  uDepthMax:{value: DEPTH_MAX_METERS},
+};
+const mat = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader:`
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader:`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uPano, uDepth;
+    uniform vec2 uParallax;
+    uniform float uYaw, uPitch, uFov, uAspect, uDepthMax;
+    uniform vec3 uFwd, uRight, uUp;
+
+    float decodeDepth(vec2 uv){
+      vec4 t = texture2D(uDepth, uv);
+      float d = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
+      return d;
+    }
+    vec2 panoUvFor(vec3 dir){
+      float u = 0.5 - atan(dir.x, dir.z) / 6.28318530718;
+      float v = 0.5 + asin(clamp(dir.y,-1.0,1.0)) / 3.14159265;
+      return vec2(u, v);
+    }
+    void main(){
+      vec2 ndc = vUv * 2.0 - 1.0;
+      float tanF = tan(radians(uFov) * 0.5);
+      vec3 dir = normalize(uFwd + uRight * (ndc.x * tanF * uAspect) + uUp * (ndc.y * tanF));
+
+      vec2 baseUv = panoUvFor(dir);
+      float sceneD = decodeDepth(baseUv);
+      vec3 ro = vec3(uParallax.x, uParallax.y, 0.0);
+      float proximity = 1.0 - sceneD;
+      vec2 shift = -uParallax * proximity * 0.04;
+      vec2 uv = baseUv + shift;
+      float d2 = decodeDepth(uv);
+      proximity = 1.0 - d2;
+      uv = baseUv - uParallax * proximity * 0.04;
+      vec3 col = texture2D(uPano, uv).rgb;
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat);
+const orthoCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+scene.add(quad);
+
+// --- gestures
+const INITIAL_YAW = 3.1416, INITIAL_PITCH = -0.22;   // face the dining table (north) on load
+let dragging=false, lastX=0, lastY=0, targetYaw=INITIAL_YAW, targetPitch=INITIAL_PITCH, targetPx=0, targetPy=0;
+let velYaw=0, velPitch=0, lastMoveT=0, lastInputT=performance.now();
+const el = renderer.domElement;
+function down(x,y){ dragging=true; lastX=x; lastY=y; velYaw=0; velPitch=0;
+  lastMoveT=performance.now(); lastInputT=performance.now(); }
+function move(x,y){
+  lastInputT = performance.now();
+  if(!dragging) return;
+  const now = performance.now();
+  const dx = x-lastX, dy = y-lastY;
+  const dt = Math.max((now-lastMoveT)/1000, 0.001);
+  lastX=x; lastY=y; lastMoveT=now;
+  const dYaw = -dx * DRAG_YAW;
+  targetYaw += dYaw;
+  const dPitch = dy*0.0016;
+  targetPitch = THREE.MathUtils.clamp(targetPitch + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  targetPy = THREE.MathUtils.clamp(targetPy + dy*0.0004, -PARALLAX_Y, PARALLAX_Y);
+  velYaw   = velYaw*0.6   + (dYaw/dt)*0.4;
+  velPitch = velPitch*0.6 + (dPitch/dt)*0.4;
+}
+function up(){ dragging=false; }
+el.addEventListener('pointerdown', e=>{down(e.clientX,e.clientY); document.getElementById('hint').style.opacity=0;});
+addEventListener('pointermove', e=>move(e.clientX,e.clientY));
+addEventListener('pointerup', up);
+addEventListener('mousemove', e=>{
+  if(dragging || e.pointerType==='touch') return;
+  lastInputT = performance.now();
+  targetPx = (e.clientX/innerWidth - .5) * 2 * PARALLAX_X;
+  targetPy = (e.clientY/innerHeight - .5) * 2 * PARALLAX_Y;
+});
+let pinch0=0, fov0=68;
+el.addEventListener('touchstart', e=>{ if(e.touches.length===2){ pinch0=dist(e); fov0=uniforms.uFov.value; }}, {passive:true});
+el.addEventListener('touchmove', e=>{ if(e.touches.length===2){ lastInputT=performance.now();
+  uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0/dist(e), FOV_MIN, FOV_MAX);} }, {passive:true});
+function dist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+addEventListener('wheel', e=>{ lastInputT=performance.now();
+  uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY*0.02, FOV_MIN, FOV_MAX); });
+
+// --- hotspots (bearings computed by raycast from DinPanoCam loc 2.2/8.0/2.15 rotZ 0 deg)
+const HOTSPOTS = [
+  {yaw: 3.1416, pitch:-0.18, icon:'\ud83c\udf7d\ufe0f', label:'Dining Table'},
+  {yaw: 2.60,  pitch: 0.45, icon:'\ud83d\udca1', label:'Chandelier'},
+  {yaw:-3.0,   pitch: 0.10, icon:'\ud83d\udebf', label:'Open Plan'},
+  {yaw: 1.10,  pitch:-0.55, icon:'\ud83e\ude9a', label:'Lounge'},
+]];
+const hsWrap = document.getElementById('hotspots');
+const hotspots = HOTSPOTS.map(h=>{
+  const d = document.createElement('div');
+  d.className='hs';
+  d.innerHTML = `<div class="dot">${h.icon}</div><div class="lbl">${h.label}</div>`;
+  hsWrap.appendChild(d);
+  return {el:d, ...h};
+});
+
+function projectHotspot(h){
+  let dy = h.yaw - uniforms.uYaw.value;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
+  const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value)/2);
+  const sx = (dx/(tanF*uniforms.uAspect) + 1)/2;
+  const sy = (1 - dyp/tanF)/2;
+  const visible = sx>0.02 && sx<0.98 && sy>0.02 && sy<0.98;
+  h.el.style.display = visible?'block':'none';
+  if(visible){
+    h.el.style.left = (sx*innerWidth)+'px';
+    h.el.style.top = (sy*innerHeight)+'px';
+  }
+}
+
+let yaw=INITIAL_YAW, pitch=INITIAL_PITCH, px=0, py=0;
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), .05);
+  if(!dragging && (Math.abs(velYaw) > 1e-4 || Math.abs(velPitch) > 1e-4)){
+    const decay = Math.exp(-dt/INERTIA_TAU);
+    targetYaw   += velYaw   * dt;
+    targetPitch  = THREE.MathUtils.clamp(targetPitch + velPitch*dt, -PITCH_LIMIT, PITCH_LIMIT);
+    velYaw *= decay; velPitch *= decay;
+  }
+  if(!dragging && (performance.now() - lastInputT)/1000 > AUTOROTATE_DELAY){
+    targetYaw += (AUTOROTATE_SPEED*Math.PI/180) * dt;
+  }
+  targetPitch = THREE.MathUtils.clamp(targetPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  const k = 1 - Math.pow(0.0001, dt);
+  yaw += (targetYaw-yaw)*k; pitch += (targetPitch-pitch)*k;
+  px += (targetPx-px)*k; py += (targetPy-py)*k;
+  uniforms.uYaw.value = yaw;
+  uniforms.uPitch.value = pitch;
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  uniforms.uFwd.value.set(0,0,-1).applyQuaternion(q);
+  uniforms.uRight.value.set(1,0,0).applyQuaternion(q);
+  uniforms.uUp.value.set(0,1,0).applyQuaternion(q);
+  uniforms.uParallax.value.set(px, py);
+  hotspots.forEach(projectHotspot);
+  renderer.render(scene, orthoCam);
+}
+tick();
+
+window.__setView = (yw, pt) => { targetYaw = yw; targetPitch = pt; };
+window.__viewer = {
+  get fov(){ return uniforms.uFov.value; },  set fov(v){ uniforms.uFov.value = THREE.MathUtils.clamp(v, FOV_MIN, FOV_MAX); },
+  get yaw(){ return targetYaw; },            get pitch(){ return targetPitch; },
+  get autodelay(){ return AUTOROTATE_DELAY; },
+  get limits(){ return {fov:[FOV_MIN,FOV_MAX], pitch:PITCH_LIMIT, tau:INERTIA_TAU, authorotate:AUTOROTATE_SPEED}; },
+  set parallax(p){ targetPx = THREE.MathUtils.clamp(p, -PARALLAX_X, PARALLAX_X); }
+};
+addEventListener('resize', ()=>{
+  renderer.setSize(innerWidth, innerHeight);
+  cam.aspect = uniforms.uAspect.value = innerWidth/innerHeight;
+  uniforms.uFov.value = uniforms.uFov.value;
+  renderer.render(scene, orthoCam);
+});
+</script>
+</body>
+</html>
