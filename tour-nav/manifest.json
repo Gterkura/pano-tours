@@ -97,6 +97,17 @@
     2.5,
     13.0
    ]
+  },
+  {
+   "id": "dining_premium",
+   "name": "Dining",
+   "pano": "../dining-premium/panos/dining.jpg",
+   "thumb": "thumbs/dining.jpg",
+   "depth": "../dining-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    2.2,
+    8.0
+   ]
   }
  ],
  "plan": {
