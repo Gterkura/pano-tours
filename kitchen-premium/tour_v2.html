@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Terrace Residence — Kitchen · USHEREDWORLDS 360°</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .brand{position:fixed;top:18px;left:22px;z-index:10;color:#fff;pointer-events:none;
+    text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  .brand h1{margin:0;font-size:20px;letter-spacing:3px;font-weight:600}
+  .brand p{margin:4px 0 0;font-size:10px;letter-spacing:4px;opacity:.75}
+  .wm{position:fixed;bottom:14px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.45);
+    font-size:9px;letter-spacing:2.5px;pointer-events:none}
+  .hint{position:fixed;bottom:40px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.55);
+    font-size:11px;pointer-events:none;transition:opacity 1s}
+  .hs{position:fixed;z-index:5;transform:translate(-50%,-50%);pointer-events:auto}
+  .hs .dot{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.85);
+    background:rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:15px;transition:transform .2s;cursor:pointer}
+  .hs .dot:hover{transform:scale(1.2)}
+  .hs .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;
+    background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;
+    opacity:0;transition:opacity .2s}
+  .hs:hover .lbl{opacity:1}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="brand"><h1>TERRACE RESIDENCE</h1><p>KITCHEN · USHEREDWORLDS 360° EXPERIENCE</p></div>
+<div class="hint" id="hint">Drag to look — flick and it glides · scroll/pinch to zoom · move up/down for depth parallax</div>
+<div class="wm">CONFIDENTIAL — PROPRIETARY SAMPLE · © USHEREDWORLDS LIMITED</div>
+<div id="hotspots"></div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const DEPTH_MAX_METERS = 15.0;        // matches the 15 m MapRange in the depth pass
+const PARALLAX_X = 0.22;              // max lateral head shift (meters, world-ish)
+const PARALLAX_Y = 0.13;
+
+// --- feel/controls (matched to the reference tours measured 2026-09-14)
+const FOV_DEFAULT = 110.0;   // was 68. 4096px/360deg = 11.4 px/deg, so a wide FOV
+const FOV_MIN     = 60.0;    // magnifies the pano LESS => the 4K reads sharper
+const FOV_MAX     = 140.0;
+const PITCH_LIMIT = 1.28;    // ~73deg: keeps the equirect poles out of frame
+const DRAG_YAW    = 0.0032;  // rad per px while dragging (1:1, unchanged)
+const INERTIA_TAU = 0.38;    // seconds for a flick to glide and settle
+const AUTOROTATE_DELAY = 6.0; // s idle before the showcase spin starts
+const AUTOROTATE_SPEED = 8.0; // deg/s, matching the reference
+
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(FOV_DEFAULT, innerWidth/innerHeight, 0.05, 50);
+
+// --- load RGB + RGBD depth
+const loader = new THREE.TextureLoader();
+const [panoTex, depthTex] = await Promise.all([
+  loader.loadAsync('panos/kitchen.jpg?v=20260915k'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260915k')
+]);
+panoTex.colorSpace = THREE.SRGBColorSpace;
+depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
+
+// --- full-screen quad with depth-parallax ray-march shader
+// Instead of a sphere mesh, we render a fullscreen quad and reconstruct
+// the pano ray per pixel, offsetting the ray origin by the parallax
+// vector, then ray-march the depth field.
+const uniforms = {
+  uPano:   {value: panoTex},
+  uDepth:  {value: depthTex},
+  uParallax:{value: new THREE.Vector2(0,0)},
+  uYaw:    {value: 0.0},
+  uPitch:  {value: 0.0},
+  uFov:    {value: FOV_DEFAULT},
+  uAspect: {value: innerWidth/innerHeight},
+  uFwd:    {value: new THREE.Vector3(0,0,-1)},
+  uRight:  {value: new THREE.Vector3(1,0,0)},
+  uUp:     {value: new THREE.Vector3(0,1,0)},
+  uDepthMax:{value: DEPTH_MAX_METERS},
+};
+const mat = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader:`
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader:`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uPano, uDepth;
+    uniform vec2 uParallax;
+    uniform float uYaw, uPitch, uFov, uAspect, uDepthMax;
+    uniform vec3 uFwd, uRight, uUp;
+
+    // decode 16-bit depth from RG channels
+    float decodeDepth(vec2 uv){
+      vec4 t = texture2D(uDepth, uv);
+      float d = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
+      return d; // 0..1, 1.0 = far/sky
+    }
+    // sample depth with ray-march (parallax occlusion mapping style):
+    // walk along the view ray in depth space, find surface hit
+    vec2 panoUvFor(vec3 dir){
+      float u = 0.5 - atan(dir.x, dir.z) / 6.28318530718;
+      float v = 0.5 + asin(clamp(dir.y,-1.0,1.0)) / 3.14159265;
+      return vec2(u, v);
+    }
+    void main(){
+      // build camera ray via proper orthonormal basis uniforms
+      vec2 ndc = vUv * 2.0 - 1.0;
+      float tanF = tan(radians(uFov) * 0.5);
+      vec3 dir = normalize(uFwd + uRight * (ndc.x * tanF * uAspect) + uUp * (ndc.y * tanF));
+
+      // parallax: offset ray origin laterally; ray-march depth
+      // (8 steps occlusion-style)
+      vec2 baseUv = panoUvFor(dir);
+      float sceneD = decodeDepth(baseUv);       // 0..1 (1=sky)
+      vec3 ro = vec3(uParallax.x, uParallax.y, 0.0); // head position (meters-ish)
+      // parallax offset in pano-uv space: shift uv opposite to head motion,
+      // scaled by proximity (closer surface = more shift)
+      float proximity = 1.0 - sceneD;           // near = 1
+      vec2 shift = -uParallax * proximity * 0.04; // tunable
+      vec2 uv = baseUv + shift;
+      // iterate once more at shifted uv for consistency
+      float d2 = decodeDepth(uv);
+      proximity = 1.0 - d2;
+      uv = baseUv - uParallax * proximity * 0.04;
+      vec3 col = texture2D(uPano, uv).rgb;
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat);
+const orthoCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+scene.add(quad);
+
+// --- gestures: Option 1 — horizontal drag = rotate, vertical drag = parallax
+const INITIAL_YAW = 0.059, INITIAL_PITCH = -0.05;   // face the cabinetry wall on load
+let dragging=false, lastX=0, lastY=0, targetYaw=INITIAL_YAW, targetPitch=INITIAL_PITCH, targetPx=0, targetPy=0;
+let velYaw=0, velPitch=0, lastMoveT=0, lastInputT=performance.now();
+const el = renderer.domElement;
+function down(x,y){ dragging=true; lastX=x; lastY=y; velYaw=0; velPitch=0;
+  lastMoveT=performance.now(); lastInputT=performance.now(); }
+function move(x,y){
+  lastInputT = performance.now();
+  if(!dragging) return;
+  const now = performance.now();
+  const dx = x-lastX, dy = y-lastY;
+  const dt = Math.max((now-lastMoveT)/1000, 0.001);
+  lastX=x; lastY=y; lastMoveT=now;
+  // horizontal drag -> yaw always (1:1)
+  const dYaw = -dx * DRAG_YAW;
+  targetYaw += dYaw;
+  const dPitch = dy*0.0016;
+  targetPitch = THREE.MathUtils.clamp(targetPitch + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  targetPy = THREE.MathUtils.clamp(targetPy + dy*0.0004, -PARALLAX_Y, PARALLAX_Y);
+  // capture release velocity (rad/s), smoothed so a single stray event can't fling it
+  velYaw   = velYaw*0.6   + (dYaw/dt)*0.4;
+  velPitch = velPitch*0.6 + (dPitch/dt)*0.4;
+}
+function up(){ dragging=false; }
+el.addEventListener('pointerdown', e=>{down(e.clientX,e.clientY); document.getElementById('hint').style.opacity=0;});
+addEventListener('pointermove', e=>move(e.clientX,e.clientY));
+addEventListener('pointerup', up);
+// mouse hover parallax (desktop): subtle X/Y shift on hover
+addEventListener('mousemove', e=>{
+  if(dragging || e.pointerType==='touch') return;
+  lastInputT = performance.now();
+  targetPx = (e.clientX/innerWidth - .5) * 2 * PARALLAX_X;
+  targetPy = (e.clientY/innerHeight - .5) * 2 * PARALLAX_Y;
+});
+// pinch zoom
+let pinch0=0, fov0=68;
+el.addEventListener('touchstart', e=>{ if(e.touches.length===2){ pinch0=dist(e); fov0=uniforms.uFov.value; }}, {passive:true});
+el.addEventListener('touchmove', e=>{ if(e.touches.length===2){ lastInputT=performance.now();
+  uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0/dist(e), FOV_MIN, FOV_MAX);} }, {passive:true});
+function dist(e){ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+addEventListener('wheel', e=>{ lastInputT=performance.now();
+  uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY*0.02, FOV_MIN, FOV_MAX); });
+
+// --- hotspots (3D-anchored: yaw/pitch on the pano sphere)
+// bearings derived from the kitchen pano camera (KitPanoCam, loc 5.7/14.5/2.15,
+// rotZ -111.8 deg) by projecting each feature's model position into this pano --
+// not copied from another room:
+const HOTSPOTS = [
+  {yaw: 0.06,  pitch:-0.20, icon:'🗄️', label:'Cabinetry & Worktop'},
+  {yaw: 0.34,  pitch:-0.15, icon:'🔥', label:'Cooktop & Hood'},
+  {yaw: 1.14,  pitch:-0.12, icon:'⏲️', label:'Double Ovens'},
+  {yaw:-1.86,  pitch: 0.08, icon:'🪟', label:'Patio Doors'},
+];
+const hsWrap = document.getElementById('hotspots');
+const hotspots = HOTSPOTS.map(h=>{
+  const d = document.createElement('div');
+  d.className='hs';
+  d.innerHTML = `<div class="dot">${h.icon}</div><div class="lbl">${h.label}</div>`;
+  hsWrap.appendChild(d);
+  return {el:d, ...h};
+});
+
+function projectHotspot(h){
+  // visible if within camera view
+  let dy = h.yaw - uniforms.uYaw.value;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
+  const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value)/2);
+  const sx = (dx/(tanF*uniforms.uAspect) + 1)/2;
+  const sy = (1 - dyp/tanF)/2;
+  const visible = sx>0.02 && sx<0.98 && sy>0.02 && sy<0.98;
+  h.el.style.display = visible?'block':'none';
+  if(visible){
+    h.el.style.left = (sx*innerWidth)+'px';
+    h.el.style.top = (sy*innerHeight)+'px';
+  }
+}
+
+// --- loop
+let yaw=INITIAL_YAW, pitch=INITIAL_PITCH, px=0, py=0;
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), .05);
+  // inertial glide: after release the flick keeps travelling, decaying smoothly
+  if(!dragging && (Math.abs(velYaw) > 1e-4 || Math.abs(velPitch) > 1e-4)){
+    const decay = Math.exp(-dt/INERTIA_TAU);
+    targetYaw   += velYaw   * dt;
+    targetPitch  = THREE.MathUtils.clamp(targetPitch + velPitch*dt, -PITCH_LIMIT, PITCH_LIMIT);
+    velYaw *= decay; velPitch *= decay;
+  }
+  // showcase autorotate: only after a quiet spell, cancelled by any input
+  if(!dragging && (performance.now() - lastInputT)/1000 > AUTOROTATE_DELAY){
+    targetYaw += (AUTOROTATE_SPEED*Math.PI/180) * dt;
+  }
+  targetPitch = THREE.MathUtils.clamp(targetPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  const k = 1 - Math.pow(0.0001, dt);   // smooth damp
+  yaw += (targetYaw-yaw)*k; pitch += (targetPitch-pitch)*k;
+  px += (targetPx-px)*k; py += (targetPy-py)*k;
+  uniforms.uYaw.value = yaw;
+  uniforms.uPitch.value = pitch;
+  // proper quaternion basis: yaw around world Y, pitch around local X
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+  uniforms.uFwd.value.set(0,0,-1).applyQuaternion(q);
+  uniforms.uRight.value.set(1,0,0).applyQuaternion(q);
+  uniforms.uUp.value.set(0,1,0).applyQuaternion(q);
+  uniforms.uParallax.value.set(px, py);
+  hotspots.forEach(projectHotspot);
+  renderer.render(scene, orthoCam);
+}
+tick();
+
+window.__setView = (yw, pt) => { targetYaw = yw; targetPitch = pt; };
+// QA hook: lets the runtime verify controls headlessly
+window.__viewer = {
+  get fov(){ return uniforms.uFov.value; },  set fov(v){ uniforms.uFov.value = THREE.MathUtils.clamp(v, FOV_MIN, FOV_MAX); },
+  get yaw(){ return targetYaw; },            get pitch(){ return targetPitch; },
+  get autodelay(){ return AUTOROTATE_DELAY; },
+  get limits(){ return {fov:[FOV_MIN,FOV_MAX], pitch:PITCH_LIMIT, tau:INERTIA_TAU, authorotate:AUTOROTATE_SPEED}; },
+  set parallax(p){ targetPx = THREE.MathUtils.clamp(p, -PARALLAX_X, PARALLAX_X); }
+};
+addEventListener('resize', ()=>{
+  renderer.setSize(innerWidth, innerHeight);
+  cam.aspect = uniforms.uAspect.value = innerWidth/innerHeight;
+  uniforms.uFov.value = uniforms.uFov.value; // keep
+  renderer.render(scene, orthoCam);
+});
+</script>
+</body>
+</html>
