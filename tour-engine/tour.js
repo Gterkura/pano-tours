@@ -211,6 +211,7 @@ function buildDrawer() {
 
 // ---------------------------------------------------------------- loop
 const clock = new THREE.Clock();
+let frameNo = 0;
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -238,6 +239,9 @@ function tick() {
   uniforms.uUp.value.set(0, 1, 0).applyQuaternion(q);
   uniforms.uParallax.value.set(targetPx, targetPy);
   projectHotspots();
+  if (window.__mapUpdate && (frameNo++ & 3) === 0) {
+    window.__mapUpdate(current ? current.plan_xy || null : null, uniforms.uYaw.value, current ? current.id : null);
+  }
   renderer.render(scene, orthoCam);
 }
 addEventListener('resize', () => {

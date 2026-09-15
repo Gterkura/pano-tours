@@ -34,6 +34,10 @@
      "icon": "🚪",
      "label": "Corridor"
     }
+   ],
+   "plan_xy": [
+    5.599999904632568,
+    2.0
    ]
   },
   {
@@ -72,5 +76,21 @@
    "pano": "../terrace-v17/panos/living_room.jpg",
    "thumb": "thumbs/terrace_living.jpg"
   }
- ]
+ ],
+ "plan": {
+  "image": "plan_mini.png",
+  "res": [
+   544,
+   961
+  ],
+  "world_x": [
+   -1.5953914458615444,
+   8.315827346427099
+  ],
+  "world_y": [
+   -1.8867147018023882,
+   15.6218905544281
+  ],
+  "base_bearing_rad": 0.6510077762027772
+ }
 }
