@@ -54,8 +54,13 @@
   {
    "id": "bedroom",
    "name": "Bedroom",
-   "pano": "../terrace-v17/panos/bedroom.jpg",
-   "thumb": "thumbs/bedroom.jpg"
+   "pano": "../bedroom-premium/panos/bedroom.jpg",
+   "thumb": "thumbs/bedroom.jpg",
+   "depth": "../bedroom-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    1.23,
+    8.62
+   ]
   },
   {
    "id": "bedroom_2",
