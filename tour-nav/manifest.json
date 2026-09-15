@@ -1,6 +1,6 @@
 {
  "title": "TERRACE RESIDENCE",
- "subtitle": "USHEREDWORLDS \u00b7 360\u00b0 EXPERIENCE",
+ "subtitle": "USHEREDWORLDS · 360° EXPERIENCE",
  "start": "living_room",
  "rooms": [
   {
@@ -13,25 +13,25 @@
     {
      "yaw": -1.5708,
      "pitch": 0.0,
-     "icon": "\ud83d\udcfa",
-     "label": "Media Wall \u00b7 News"
+     "icon": "📺",
+     "label": "Media Wall · News"
     },
     {
      "yaw": 2.2,
      "pitch": 0.15,
-     "icon": "\ud83d\udecb\ufe0f",
+     "icon": "🛋️",
      "label": "Lounge"
     },
     {
      "yaw": -1.4,
      "pitch": 0.2,
-     "icon": "\ud83d\udca1",
+     "icon": "💡",
      "label": "Chandelier"
     },
     {
      "yaw": 0.6,
      "pitch": -0.2,
-     "icon": "\ud83d\udeaa",
+     "icon": "🚪",
      "label": "Corridor"
     }
    ],
@@ -72,9 +72,14 @@
   },
   {
    "id": "terrace_living",
-   "name": "Living (v17)",
-   "pano": "../terrace-v17/panos/living_room.jpg",
-   "thumb": "thumbs/terrace_living.jpg"
+   "name": "Living Room (Ground)",
+   "pano": "../livingground-premium/panos/living_ground.jpg",
+   "thumb": "thumbs/terrace_living.jpg",
+   "depth": "../livingground-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    4.15,
+    6.45
+   ]
   },
   {
    "id": "kitchen",
