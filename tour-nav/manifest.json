@@ -43,8 +43,13 @@
   {
    "id": "master_bedroom",
    "name": "Master Bedroom",
-   "pano": "../terrace-v17/panos/master_bedroom.jpg",
-   "thumb": "thumbs/master_bedroom.jpg"
+   "pano": "../masterbedroom-premium/panos/master_bedroom.jpg",
+   "thumb": "thumbs/master_bedroom.jpg",
+   "depth": "../masterbedroom-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    5.75,
+    14.45
+   ]
   },
   {
    "id": "bedroom",
