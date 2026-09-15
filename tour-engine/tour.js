@@ -186,21 +186,13 @@ function aimTo(yaw, pitch) {
 }
 function projectHotspots() {
   hotspotEls.forEach(h => {
-    h._dbg = null;
     let dy = h.yaw - uniforms.uYaw.value;
-    dy = Math.atan2(Math.sin(dy), Math.cos(dy));      // wrap to -pi..pi
-    const dPitch = h.pitch - uniforms.uPitch.value;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
     const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
-    const halfH = Math.atan(tanF * uniforms.uAspect.value);   // horizontal half-FOV
-    const halfV = Math.atan(tanF);                            // vertical half-FOV
-    // reject anything outside the frustum FIRST: tan() flips sign past +-90deg, so without
-    // this a hotspot BEHIND the camera projects onto the screen at a plausible x
-    const inFrustum = Math.abs(dy) <= halfH && Math.abs(dPitch) <= halfV;
-    const dx = Math.tan(dy), dyp = Math.tan(dPitch);
-    const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
+    const sx = (dx / (tanF * uniforms.uAspect) + 1) / 2;
     const sy = (1 - dyp / tanF) / 2;
-    const vis = inFrustum && sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
-    h._dbg = { label: h.label, yaw: h.yaw, pitch: h.pitch, dy: dy, sx: sx, sy: sy, vis: vis };
+    const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
     h.el.style.display = vis ? 'block' : 'none';
     if (vis) { h.el.style.left = (sx * innerWidth) + 'px'; h.el.style.top = (sy * innerHeight) + 'px'; }
   });
@@ -277,9 +269,6 @@ window.__viewer = {
   get fov() { return uniforms.uFov.value; }, set fov(v) { uniforms.uFov.value = THREE.MathUtils.clamp(v, FOV_MIN, FOV_MAX); },
   get yaw() { return targetYaw; }, get pitch() { return targetPitch; },
   hotspots() { return hotspotEls.map(h => ({ label: h.label, yaw: h.yaw, to: h.to || null })); },
-  debugHotspots() { return { uYaw: uniforms.uYaw.value, uPitch: uniforms.uPitch.value, uFov: uniforms.uFov.value,
-                             aspect: uniforms.uAspect.value, count: hotspotEls.length,
-                             items: hotspotEls.map(h => h._dbg) }; },
   aim(y, p) { aimTo(y, p); },
   go(id, keepView = true) { return switchTo(id, keepView); },
   limits: { fov: [FOV_MIN, FOV_MAX], pitch: PITCH_LIMIT, tau: INERTIA_TAU, autorotate: AUTOROTATE_SPEED, transition: TRANSITION_S },
