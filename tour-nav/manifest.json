@@ -1,6 +1,6 @@
 {
  "title": "TERRACE RESIDENCE",
- "subtitle": "USHEREDWORLDS · 360° EXPERIENCE",
+ "subtitle": "USHEREDWORLDS \u00b7 360\u00b0 EXPERIENCE",
  "start": "living_room",
  "rooms": [
   {
@@ -13,25 +13,25 @@
     {
      "yaw": -1.5708,
      "pitch": 0.0,
-     "icon": "📺",
-     "label": "Media Wall · News"
+     "icon": "\ud83d\udcfa",
+     "label": "Media Wall \u00b7 News"
     },
     {
      "yaw": 2.2,
      "pitch": 0.15,
-     "icon": "🛋️",
+     "icon": "\ud83d\udecb\ufe0f",
      "label": "Lounge"
     },
     {
      "yaw": -1.4,
      "pitch": 0.2,
-     "icon": "💡",
+     "icon": "\ud83d\udca1",
      "label": "Chandelier"
     },
     {
      "yaw": 0.6,
      "pitch": -0.2,
-     "icon": "🚪",
+     "icon": "\ud83d\udeaa",
      "label": "Corridor"
     }
    ],
