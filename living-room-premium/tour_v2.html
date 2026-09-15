@@ -65,8 +65,8 @@ const cam = new THREE.PerspectiveCamera(FOV_DEFAULT, innerWidth/innerHeight, 0.0
 // --- load RGB + RGBD depth
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_room.jpg?v=20260914t'),
-  loader.loadAsync('panos/depth_rgbd.png?v=20260914t')
+  loader.loadAsync('panos/living_room.jpg?v=20260914u'),
+  loader.loadAsync('panos/depth_rgbd.png?v=20260914u')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
 depthTex.minFilter = depthTex.magFilter = THREE.LinearFilter;
@@ -205,11 +205,14 @@ function projectHotspot(h){
   // visible if within camera view
   let dy = h.yaw - uniforms.uYaw.value;
   dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-  const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
+  const dPitch = h.pitch - uniforms.uPitch.value;
   const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value)/2);
-  const sx = (dx/(tanF*uniforms.uAspect) + 1)/2;
+  const halfH = Math.atan(tanF*uniforms.uAspect.value), halfV = Math.atan(tanF);
+  const inFrustum = Math.abs(dy) <= halfH && Math.abs(dPitch) <= halfV;
+  const dx = Math.tan(dy), dyp = Math.tan(dPitch);
+  const sx = (dx/(tanF*uniforms.uAspect.value) + 1)/2;
   const sy = (1 - dyp/tanF)/2;
-  const visible = sx>0.02 && sx<0.98 && sy>0.02 && sy<0.98;
+  const visible = inFrustum && sx>0.02 && sx<0.98 && sy>0.02 && sy<0.98;
   h.el.style.display = visible?'block':'none';
   if(visible){
     h.el.style.left = (sx*innerWidth)+'px';
