@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terrace Residence — Bedroom 2 | UsheredWorlds 360° Tour</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+<style>
+  html,body { margin:0; height:100%; background:#0a0c0e; color:#eceae5;
+              font-family:'Segoe UI',system-ui,-apple-system,sans-serif; }
+  #panorama { width:100vw; height:100vh; }
+  .brand { position:fixed; top:14px; left:18px; z-index:20; pointer-events:none; }
+  .brand b { font-size:1rem; letter-spacing:.14em; text-transform:uppercase;
+             color:#f2efe9; text-shadow:0 1px 8px rgba(0,0,0,.8); }
+  .brand span { display:block; font-size:.62rem; letter-spacing:.3em;
+                color:#c9a86a; text-transform:uppercase; margin-top:2px; }
+  .conf { position:fixed; bottom:12px; right:16px; z-index:20; font-size:.6rem;
+          color:rgba(255,255,255,.45); pointer-events:none;
+          letter-spacing:.06em; }
+</style>
+</head>
+<body>
+<div class="brand"><b>Terrace Residence</b><span>Living Room (Ground) · UsheredWorlds 360°</span></div>
+<div id="panorama"></div>
+<div class="conf">CONFIDENTIAL — PROPRIETARY SAMPLE · © UsheredWorlds Limited</div>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script>
+pannellum.viewer('panorama', {
+  "type": "equirectangular",
+  "panorama": "panos/bedroom_2.jpg?v=20260915b3",
+  "autoLoad": true,
+  "autoRotate": -2,
+  "autoRotateInactivityDelay": 3000,
+  "hfov": 110,
+  "showZoomCtrl": true,
+  "compass": false,
+  "hotSpots": [
+    { "pitch": -10, "yaw": 0, "type": "info",
+      "text": "Bedroom 2 — premium sample scene (centre of frame is the bed)" }
+  ]
+});
+</script>
+</body>
+</html>
