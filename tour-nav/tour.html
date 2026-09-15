@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Terrace Residence · Multi-room 360</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  #brand{position:fixed;top:18px;left:22px;z-index:10;color:#fff;pointer-events:none;text-shadow:0 1px 8px rgba(0,0,0,.7)}
+  #brand h1{margin:0;font-size:20px;letter-spacing:3px;font-weight:600}
+  #brand p{margin:4px 0 0;font-size:10px;letter-spacing:4px;opacity:.75}
+  .wm{position:fixed;bottom:14px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.45);font-size:9px;letter-spacing:2.5px;pointer-events:none}
+  .hint{position:fixed;bottom:44px;left:0;right:0;text-align:center;z-index:10;color:rgba(255,255,255,.55);font-size:11px;pointer-events:none;transition:opacity 1s}
+  .hs{position:fixed;z-index:6;transform:translate(-50%,-50%);cursor:pointer}
+  .hs .dot{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;transition:transform .2s}
+  .hs:hover .dot{transform:scale(1.18)}
+  .hs .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .2s}
+  .hs:hover .lbl{opacity:1}
+  #drawerBtn{position:fixed;bottom:22px;left:22px;z-index:12;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:12px;letter-spacing:1.5px;padding:10px 14px;border-radius:9px;cursor:pointer;backdrop-filter:blur(4px)}
+  #drawerBtn:hover{border-color:#fff}
+  #drawer{position:fixed;left:0;right:0;bottom:0;z-index:11;display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px 16px 74px;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.86));backdrop-filter:blur(6px)}
+  #drawer.open{display:grid}
+  .card{cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.05);transition:border-color .2s,transform .2s}
+  .card:hover{border-color:#fff;transform:translateY(-2px)}
+  .card img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;opacity:.9}
+  .card span{display:block;padding:7px 9px;color:#fff;font-size:11px;letter-spacing:1px}
+  .toast{position:fixed;top:50%;left:0;right:0;text-align:center;color:#fff;font-size:13px;letter-spacing:2px;z-index:20;pointer-events:none;opacity:0;transition:opacity .3s}
+</style>
+</head>
+<body data-manifest="manifest.json">
+<div id="app"></div>
+<div id="brand"></div>
+<div class="hint" id="hint">Drag to look — flick and it glides · scroll/pinch to zoom · move up/down for depth parallax · ← → to change room</div>
+<div class="wm">CONFIDENTIAL — PROPRIETARY SAMPLE · © USHEREDWORLDS LIMITED</div>
+<div id="hotspots"></div>
+<div class="toast" id="toast"></div>
+<div id="drawer"></div>
+<div id="drawerBtn">▦ <span id="roomName">ROOMS</span></div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module" src="../tour-engine/tour.js"></script>
+<script>
+  // room name in the button + keyboard room cycling (kept outside the engine module)
+  let names = {}, order = [];
+  fetch('manifest.json').then(r=>r.json()).then(m=>{ order = m.rooms.map(r=>r.id); m.rooms.forEach(r=>names[r.id]=r.name); });
+  window.__onRoomChanged = function(room){ document.getElementById('roomName').textContent = (room.name||'ROOMS').toUpperCase(); };
+  addEventListener('keydown', e=>{
+    if(!window.__viewer || !order.length) return;
+    const i = order.indexOf(window.__viewer.room);
+    if(e.key==='ArrowRight') window.__viewer.go(order[(i+1)%order.length]);
+    if(e.key==='ArrowLeft')  window.__viewer.go(order[(i-1+order.length)%order.length]);
+    if(e.key==='Escape')     document.getElementById('drawer').classList.remove('open');
+  });
+</script>
+</body>
+</html>

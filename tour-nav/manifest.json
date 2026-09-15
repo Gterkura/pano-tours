@@ -1,0 +1,76 @@
+{
+ "title": "TERRACE RESIDENCE",
+ "subtitle": "USHEREDWORLDS · 360° EXPERIENCE",
+ "start": "living_room",
+ "rooms": [
+  {
+   "id": "living_room",
+   "name": "Living Room",
+   "pano": "../living-room-premium/panos/living_room.jpg",
+   "thumb": "thumbs/living_room.jpg",
+   "depth": "../living-room-premium/panos/depth_rgbd.png",
+   "hotspots": [
+    {
+     "yaw": -1.5708,
+     "pitch": 0.0,
+     "icon": "📺",
+     "label": "Media Wall · News"
+    },
+    {
+     "yaw": 2.2,
+     "pitch": 0.15,
+     "icon": "🛋️",
+     "label": "Lounge"
+    },
+    {
+     "yaw": -1.4,
+     "pitch": 0.2,
+     "icon": "💡",
+     "label": "Chandelier"
+    },
+    {
+     "yaw": 0.6,
+     "pitch": -0.2,
+     "icon": "🚪",
+     "label": "Corridor"
+    }
+   ]
+  },
+  {
+   "id": "master_bedroom",
+   "name": "Master Bedroom",
+   "pano": "../terrace-v17/panos/master_bedroom.jpg",
+   "thumb": "thumbs/master_bedroom.jpg"
+  },
+  {
+   "id": "bedroom",
+   "name": "Bedroom",
+   "pano": "../terrace-v17/panos/bedroom.jpg",
+   "thumb": "thumbs/bedroom.jpg"
+  },
+  {
+   "id": "bedroom_2",
+   "name": "Bedroom 2",
+   "pano": "../terrace-v17/panos/bedroom_2.jpg",
+   "thumb": "thumbs/bedroom_2.jpg"
+  },
+  {
+   "id": "bathroom",
+   "name": "Bathroom",
+   "pano": "../terrace-v17/panos/bathroom.jpg",
+   "thumb": "thumbs/bathroom.jpg"
+  },
+  {
+   "id": "bathroom_2",
+   "name": "Bathroom 2",
+   "pano": "../terrace-v17/panos/bathroom_2.jpg",
+   "thumb": "thumbs/bathroom_2.jpg"
+  },
+  {
+   "id": "terrace_living",
+   "name": "Living (v17)",
+   "pano": "../terrace-v17/panos/living_room.jpg",
+   "thumb": "thumbs/terrace_living.jpg"
+  }
+ ]
+}
