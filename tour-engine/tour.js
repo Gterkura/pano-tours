@@ -204,6 +204,9 @@ function projectHotspots() {
     const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
     h.el.style.display = vis ? 'block' : 'none';
     if (vis) { h.el.style.left = (sx * innerWidth) + 'px'; h.el.style.top = (sy * innerHeight) + 'px'; }
+    window.__lastProj = hotspotEls.map(q => ({ label: q.label, yaw: q.yaw, pitch: q.pitch,
+      uYaw: uniforms.uYaw.value, uPitch: uniforms.uPitch.value, uFov: uniforms.uFov.value,
+      uAspect: uniforms.uAspect.value, vis }));
   });
 }
 
