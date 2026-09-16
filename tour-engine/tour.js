@@ -88,7 +88,7 @@ let rooms = [], byId = {}, current = null, pendingId = null;
 let dragging = false, lastX = 0, lastY = 0;
 let targetYaw = 0, targetPitch = 0, targetPx = 0, targetPy = 0;
 let velYaw = 0, velPitch = 0, lastMoveT = 0, lastInputT = performance.now();
-let switching = false, mixStart = 0;
+let switching = false, mixStart = 0, switchToken = 0;
 
 const el = renderer.domElement;
 const hintEl = document.getElementById('hint');
@@ -135,25 +135,24 @@ function tex(url, srgb) {
 async function switchTo(id, keepView = true) {
   const room = byId[id];
   if (!room || (current && current.id === id)) return;
-  // If a previous transition never completed (stuck switching flag), recover instead of
-  // deadlocking: copy B->A and clear the flag so the new switch can proceed.
-  if (switching) {
-    uniforms.uPanoA.value = uniforms.uPanoB.value;
-    uniforms.uDepthA.value = uniforms.uDepthB.value;
-    uniforms.uMix.value = 0;
-    switching = false;
-  }
-  switching = true; pendingId = id;
+  // Token: rapid taps — only the LAST requested switch may apply its textures.
+  const myToken = ++switchToken;
+  pendingId = id;
   let pano = null, depth = null;
   try { pano = await loader.loadAsync(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
   if (room.depth) { try { depth = await loader.loadAsync(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
-  if (!pano) { switching = false; pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
-  // NEW pano goes into the A slot when a transition is still showing B (self-heal), else B slot
+  if (!pano) { pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
+  if (myToken !== switchToken) return;   // a newer tap superseded this one
+  // Fold any half-finished transition into A, then arm a FRESH transition with the new pano in B.
+  uniforms.uPanoA.value = uniforms.uPanoB.value;
+  uniforms.uDepthA.value = uniforms.uDepthB.value;
   uniforms.uPanoB.value = pano;
-  if (pano) uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
+  uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
   uniforms.uDepthB.value = depth || farPixel;
   uniforms.uDepthB.value.minFilter = uniforms.uDepthB.value.magFilter = THREE.LinearFilter;
+  uniforms.uMix.value = 0;
   mixStart = performance.now();
+  switching = true;                       // arm ONLY now that B holds the new room
   if (!keepView) { targetYaw = 0; targetPitch = 0; }
   current = room; pendingId = null;
   buildHotspots(room);
