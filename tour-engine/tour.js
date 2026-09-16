@@ -144,7 +144,6 @@ async function switchTo(id, keepView = true) {
   ]);
   let pano = null, depth = null;
   try { pano = await loadWithTimeout(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
-  if (room.depth) { try { depth = await loadWithTimeout(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
   if (!pano) { pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
   if (myToken !== switchToken) return;   // a newer tap superseded this one
   // Fold any half-finished transition into A, then arm a FRESH transition with the new pano in B.
@@ -152,7 +151,8 @@ async function switchTo(id, keepView = true) {
   uniforms.uDepthA.value = uniforms.uDepthB.value;
   uniforms.uPanoB.value = pano;
   uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
-  uniforms.uDepthB.value = depth || farPixel;
+  // Depth streams in AFTER the pano is on screen — room appears instantly, parallax lands a beat later.
+  uniforms.uDepthB.value = depthCache[id] || farPixel;
   uniforms.uDepthB.value.minFilter = uniforms.uDepthB.value.magFilter = THREE.LinearFilter;
   uniforms.uMix.value = 0;
   mixStart = performance.now();
@@ -161,6 +161,26 @@ async function switchTo(id, keepView = true) {
   current = room; pendingId = null;
   buildHotspots(room);
   if (window.__onRoomChanged) window.__onRoomChanged(room);
+  // non-blocking depth load + cache, then prefetch neighbours so next switch is instant
+  loadWithTimeout(room.depth, 15000).then(d => {
+    if (d) { d.minFilter = d.magFilter = THREE.LinearFilter; depthCache[id] = d;
+      if (current === room) uniforms.uDepthB.value = d; }
+  }).catch(()=>{});
+  prefetchNeighbors(room);
+}
+const depthCache = {}, panoCache = new Set();
+async function prefetchNeighbors(room) {
+  (room.hotspots || []).forEach(h => {
+    if (!h.to) return;
+    const nb = byId[h.to]; if (!nb) return;
+    if (!panoCache.has(nb.pano)) {
+      panoCache.add(nb.pano);
+      loader.loadAsync(nb.pano).catch(()=>{});
+    }
+    if (nb.depth && !depthCache[nb.id]) {
+      loader.loadAsync(nb.depth).then(d => { d.minFilter = d.magFilter = THREE.LinearFilter; depthCache[nb.id] = d; }).catch(()=>{});
+    }
+  });
 }
 function finishTransition() {
   uniforms.uPanoA.value = uniforms.uPanoB.value;
