@@ -177,23 +177,8 @@
    ]
   },
   {
-   "id": "bathroom",
-   "name": "Bathroom",
-   "pano": "../terrace-v17/panos/bathroom.jpg",
-   "thumb": "thumbs/bathroom.jpg",
-   "hotspots": [
-    {
-     "to": "bedroom",
-     "yaw": 0.2268,
-     "pitch": -0.2448,
-     "icon": "\ud83d\udeaa",
-     "label": "To Bedroom"
-    }
-   ]
-  },
-  {
    "id": "bathroom_2",
-   "name": "Bathroom 2",
+   "name": "Master Bathroom",
    "pano": "../terrace-v17/panos/bathroom_2.jpg",
    "thumb": "thumbs/bathroom_2.jpg",
    "hotspots": [
@@ -228,7 +213,7 @@
   },
   {
    "id": "bathroom_premium",
-   "name": "Bathroom",
+   "name": "Bedroom 1 Bathroom",
    "pano": "../bathroom-premium/panos/bathroom.jpg",
    "thumb": "thumbs/bathroom_premium.jpg",
    "depth": "../bathroom-premium/panos/depth_rgbd.png",
