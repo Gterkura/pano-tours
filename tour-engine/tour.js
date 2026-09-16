@@ -199,7 +199,7 @@ function projectHotspots() {
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
     const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
-    const sx = (dx / (tanF * uniforms.uAspect) + 1) / 2;
+    const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
     const sy = (1 - dyp / tanF) / 2;
     const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
     h.el.style.display = vis ? 'block' : 'none';
