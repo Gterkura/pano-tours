@@ -47,7 +47,7 @@
 <div id="hotspots"></div>
 <div class="toast" id="toast"></div>
 <div id="drawer"></div>
-<div id="minimap"><img id="mapImg" alt=""><div id="yih"><i id="yhArrow"></i><b></b></div><div class="cap">YOU ARE HERE</div></div>
+<div id="minimap" style="display:none"><img id="mapImg" alt=""><div id="yih"><i id="yhArrow"></i><b></b></div><div class="cap">YOU ARE HERE</div></div>
 <div id="drawerBtn">▦ <span id="roomName">ROOMS</span></div>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
@@ -57,33 +57,10 @@
   // room name in the button + keyboard room cycling (kept outside the engine module)
   let names = {}, order = [];
   fetch('manifest.json').then(r=>r.json()).then(m=>{ order = m.rooms.map(r=>r.id); m.rooms.forEach(r=>names[r.id]=r.name); });
-  // --- minimap: plan image + you-are-here dot, driven by the engine's frame hook
+  // --- minimap: DISABLED per Philip 2026-09-15 (panel stuck on screen). Re-enable by restoring
+  // the #minimap div + this block. Code kept for reference.
   let PLAN = null, mapReady = false;
-  fetch('manifest.json').then(r=>r.json()).then(m=>{
-    PLAN = m.plan || null;
-    if (!PLAN) { document.getElementById('minimap').style.display = 'none'; return; }
-    const img = document.getElementById('mapImg');
-    img.onload = () => { mapReady = true; };
-    img.src = PLAN.image;
-  });
-  window.__mapUpdate = function(planXY, yaw, roomId){
-    if (!PLAN || !mapReady) return;
-    const box = document.getElementById('yih');
-    if (!planXY) { box.style.display = 'none'; return; }
-    box.style.display = 'block';
-    const [wx, wy] = planXY;
-    const W = PLAN.res[0], H = PLAN.res[1];
-    const px = (wx - PLAN.world_x[0]) / (PLAN.world_x[1] - PLAN.world_x[0]) * W;
-    const py = (PLAN.world_y[1] - wy) / (PLAN.world_y[1] - PLAN.world_y[0]) * H;
-    // place in page pixels: the panel is 190px wide minus padding, image scaled to fit
-    const scale = (190 - 12) / W;
-    box.style.left = (6 + px * scale) + 'px';
-    box.style.top  = (6 + py * scale) + 'px';
-    // rotate the arrow: viewer yaw 0 = the render camera's world bearing
-    const bearing = PLAN.base_bearing_rad - yaw;
-    const deg = -(bearing * 180 / Math.PI) + 90;   // image up = north (-y)
-    document.getElementById('yhArrow').style.transform = 'rotate(' + deg + 'deg)';
-  };
+  window.__mapUpdate = function(){ /* minimap removed */ };
   window.__onRoomChanged = function(room){ document.getElementById('roomName').textContent = (room.name||'ROOMS').toUpperCase(); };
   addEventListener('keydown', e=>{
     if(!window.__viewer || !order.length) return;
