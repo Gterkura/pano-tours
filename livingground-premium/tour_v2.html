@@ -64,7 +64,7 @@ const cam = new THREE.PerspectiveCamera(FOV_DEFAULT, innerWidth/innerHeight, 0.0
 
 const loader = new THREE.TextureLoader();
 const [panoTex, depthTex] = await Promise.all([
-  loader.loadAsync('panos/living_ground.jpg?v=20260915g'),
+  loader.loadAsync('panos/living_ground.jpg?v=20260916m'),
   loader.loadAsync('panos/depth_rgbd.png?v=20260915g')
 ]);
 panoTex.colorSpace = THREE.SRGBColorSpace;
