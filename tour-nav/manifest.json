@@ -45,8 +45,8 @@
    "depth": "../living-room-premium/panos/depth_rgbd.png",
    "hotspots": [
     {
-     "yaw": -1.5708,
-     "pitch": 0.0,
+     "yaw": 0.342,
+     "pitch": 0.05,
      "icon": "\ud83d\udcfa",
      "label": "Media Wall \u00b7 News"
     },
@@ -57,14 +57,14 @@
      "label": "Lounge"
     },
     {
-     "yaw": -1.4,
-     "pitch": 0.2,
+     "yaw": -2.36,
+     "pitch": 0.55,
      "icon": "\ud83d\udca1",
      "label": "Chandelier"
     },
     {
-     "yaw": 0.6,
-     "pitch": -0.2,
+     "yaw": -1.26,
+     "pitch": -0.15,
      "icon": "\ud83d\udeaa",
      "label": "Corridor"
     },
