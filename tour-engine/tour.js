@@ -134,13 +134,22 @@ function tex(url, srgb) {
 }
 async function switchTo(id, keepView = true) {
   const room = byId[id];
-  if (!room || switching || (current && current.id === id)) return;
+  if (!room || (current && current.id === id)) return;
+  // If a previous transition never completed (stuck switching flag), recover instead of
+  // deadlocking: copy B->A and clear the flag so the new switch can proceed.
+  if (switching) {
+    uniforms.uPanoA.value = uniforms.uPanoB.value;
+    uniforms.uDepthA.value = uniforms.uDepthB.value;
+    uniforms.uMix.value = 0;
+    switching = false;
+  }
   switching = true; pendingId = id;
   let pano = null, depth = null;
   try { pano = await loader.loadAsync(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
   if (room.depth) { try { depth = await loader.loadAsync(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
   if (!pano) { switching = false; pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
-  uniforms.uPanoB.value = pano || farPixel;
+  // NEW pano goes into the A slot when a transition is still showing B (self-heal), else B slot
+  uniforms.uPanoB.value = pano;
   if (pano) uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
   uniforms.uDepthB.value = depth || farPixel;
   uniforms.uDepthB.value.minFilter = uniforms.uDepthB.value.magFilter = THREE.LinearFilter;
