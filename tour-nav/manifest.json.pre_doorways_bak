@@ -1,0 +1,149 @@
+{
+ "title": "TERRACE RESIDENCE",
+ "subtitle": "USHEREDWORLDS \u00b7 360\u00b0 EXPERIENCE",
+ "start": "terrace_living",
+ "rooms": [
+  {
+   "id": "terrace_living",
+   "name": "Main Living Room",
+   "pano": "../livingground-premium/panos/living_ground.jpg",
+   "thumb": "thumbs/terrace_living.jpg",
+   "depth": "../livingground-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    4.15,
+    6.45
+   ]
+  },
+  {
+   "id": "living_room",
+   "name": "Family Lounge",
+   "pano": "../living-room-premium/panos/living_room.jpg",
+   "thumb": "thumbs/living_room.jpg",
+   "depth": "../living-room-premium/panos/depth_rgbd.png",
+   "hotspots": [
+    {
+     "yaw": -1.5708,
+     "pitch": 0.0,
+     "icon": "\ud83d\udcfa",
+     "label": "Media Wall \u00b7 News"
+    },
+    {
+     "yaw": 2.2,
+     "pitch": 0.15,
+     "icon": "\ud83d\udecb\ufe0f",
+     "label": "Lounge"
+    },
+    {
+     "yaw": -1.4,
+     "pitch": 0.2,
+     "icon": "\ud83d\udca1",
+     "label": "Chandelier"
+    },
+    {
+     "yaw": 0.6,
+     "pitch": -0.2,
+     "icon": "\ud83d\udeaa",
+     "label": "Corridor"
+    }
+   ],
+   "plan_xy": [
+    5.599999904632568,
+    2.0
+   ]
+  },
+  {
+   "id": "master_bedroom",
+   "name": "Master Bedroom",
+   "pano": "../masterbedroom-premium/panos/master_bedroom.jpg",
+   "thumb": "thumbs/master_bedroom.jpg",
+   "depth": "../masterbedroom-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    5.75,
+    14.45
+   ]
+  },
+  {
+   "id": "bedroom",
+   "name": "Bedroom",
+   "pano": "../bedroom-premium/panos/bedroom.jpg",
+   "thumb": "thumbs/bedroom.jpg",
+   "depth": "../bedroom-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    1.23,
+    8.62
+   ]
+  },
+  {
+   "id": "bedroom_2",
+   "name": "Bedroom 2",
+   "pano": "../bedroom2-premium/panos/bedroom_2.jpg",
+   "thumb": "thumbs/bedroom_2.jpg",
+   "depth": "../bedroom2-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    2.0,
+    2.8
+   ]
+  },
+  {
+   "id": "bathroom",
+   "name": "Bathroom",
+   "pano": "../terrace-v17/panos/bathroom.jpg",
+   "thumb": "thumbs/bathroom.jpg"
+  },
+  {
+   "id": "bathroom_2",
+   "name": "Bathroom 2",
+   "pano": "../terrace-v17/panos/bathroom_2.jpg",
+   "thumb": "thumbs/bathroom_2.jpg"
+  },
+  {
+   "id": "kitchen",
+   "name": "Kitchen",
+   "pano": "../kitchen-premium/panos/kitchen.jpg",
+   "thumb": "thumbs/kitchen.jpg",
+   "depth": "../kitchen-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    6.6,
+    14.0
+   ]
+  },
+  {
+   "id": "bathroom_premium",
+   "name": "Bathroom",
+   "pano": "../bathroom-premium/panos/bathroom.jpg",
+   "thumb": "thumbs/bathroom_premium.jpg",
+   "depth": "../bathroom-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    2.5,
+    13.0
+   ]
+  },
+  {
+   "id": "dining_premium",
+   "name": "Dining",
+   "pano": "../dining-premium/panos/dining.jpg",
+   "thumb": "thumbs/dining.jpg",
+   "depth": "../dining-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    2.2,
+    8.0
+   ]
+  }
+ ],
+ "plan": {
+  "image": "plan_mini.png",
+  "res": [
+   544,
+   961
+  ],
+  "world_x": [
+   -1.5953914458615444,
+   8.315827346427099
+  ],
+  "world_y": [
+   -1.8867147018023882,
+   15.6218905544281
+  ],
+  "base_bearing_rad": 0.6510077762027772
+ }
+}

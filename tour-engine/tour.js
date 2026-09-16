@@ -206,8 +206,8 @@ function projectHotspots() {
     if (vis) { h.el.style.left = (sx * innerWidth) + 'px'; h.el.style.top = (sy * innerHeight) + 'px'; }
     window.__lastProj = hotspotEls.map(q => ({ label: q.label, yaw: q.yaw, pitch: q.pitch,
       uYaw: uniforms.uYaw.value, uPitch: uniforms.uPitch.value, uFov: uniforms.uFov.value,
-      uAspect: uniforms.uAspect.value, sx: +sx.toFixed(4), sy: +sy.toFixed(4), dx: +dx.toFixed(4),
-      dyp: +dyp.toFixed(4), tanF: +tanF.toFixed(4), vis }));
+      uAspect: uniforms.uAspect.value, sx: String(sx), sy: String(sy), dx: String(dx),
+      dyp: String(dyp), tanF: String(tanF), dy: String(dy), vis }));
   });
 }
 
