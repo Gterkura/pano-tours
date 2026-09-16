@@ -138,9 +138,13 @@ async function switchTo(id, keepView = true) {
   // Token: rapid taps — only the LAST requested switch may apply its textures.
   const myToken = ++switchToken;
   pendingId = id;
+  const loadWithTimeout = (url, ms = 12000) => Promise.race([
+    loader.loadAsync(url),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('load timeout ' + url)), ms))
+  ]);
   let pano = null, depth = null;
-  try { pano = await loader.loadAsync(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
-  if (room.depth) { try { depth = await loader.loadAsync(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
+  try { pano = await loadWithTimeout(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
+  if (room.depth) { try { depth = await loadWithTimeout(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
   if (!pano) { pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
   if (myToken !== switchToken) return;   // a newer tap superseded this one
   // Fold any half-finished transition into A, then arm a FRESH transition with the new pano in B.
