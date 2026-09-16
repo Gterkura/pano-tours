@@ -1,11 +1,22 @@
 {
  "title": "TERRACE RESIDENCE",
  "subtitle": "USHEREDWORLDS \u00b7 360\u00b0 EXPERIENCE",
- "start": "living_room",
+ "start": "terrace_living",
  "rooms": [
   {
+   "id": "terrace_living",
+   "name": "Main Living Room",
+   "pano": "../livingground-premium/panos/living_ground.jpg",
+   "thumb": "thumbs/terrace_living.jpg",
+   "depth": "../livingground-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    4.15,
+    6.45
+   ]
+  },
+  {
    "id": "living_room",
-   "name": "Living Room",
+   "name": "Family Lounge",
    "pano": "../living-room-premium/panos/living_room.jpg",
    "thumb": "thumbs/living_room.jpg",
    "depth": "../living-room-premium/panos/depth_rgbd.png",
@@ -84,17 +95,6 @@
    "name": "Bathroom 2",
    "pano": "../terrace-v17/panos/bathroom_2.jpg",
    "thumb": "thumbs/bathroom_2.jpg"
-  },
-  {
-   "id": "terrace_living",
-   "name": "Living Room (Ground)",
-   "pano": "../livingground-premium/panos/living_ground.jpg",
-   "thumb": "thumbs/terrace_living.jpg",
-   "depth": "../livingground-premium/panos/depth_rgbd.png",
-   "plan_xy": [
-    4.15,
-    6.45
-   ]
   },
   {
    "id": "kitchen",

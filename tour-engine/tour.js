@@ -136,10 +136,10 @@ async function switchTo(id, keepView = true) {
   const room = byId[id];
   if (!room || switching || (current && current.id === id)) return;
   switching = true; pendingId = id;
-  const [pano, depth] = await Promise.all([
-    loader.loadAsync(room.pano).catch(() => null),
-    room.depth ? loader.loadAsync(room.depth).catch(() => null) : Promise.resolve(null),
-  ]);
+  let pano = null, depth = null;
+  try { pano = await loader.loadAsync(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
+  if (room.depth) { try { depth = await loader.loadAsync(room.depth); } catch (e) { console.error('depth load failed', room.depth, e); depth = null; } }
+  if (!pano) { switching = false; pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
   uniforms.uPanoB.value = pano || farPixel;
   if (pano) uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
   uniforms.uDepthB.value = depth || farPixel;
