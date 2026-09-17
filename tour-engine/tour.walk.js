@@ -385,28 +385,35 @@ function walkPosWorld() {
 function projectHotspots() {
   hotspotEls.forEach(h => {
     if (h.to && h.floorPinned !== false) {
-      // ---- 3D floor projection
-      const wp = markerWorldPos(h);
-      if (!wp) { h.el.style.display = 'none'; return; }
-      // camera at (camx, camy, camz) looking with yaw uYaw, pitch uPitch, fov uFov
-      const eye = new THREE.Vector3(wp.camx, wp.camy, wp.camz);
-      const yaw = uniforms.uYaw.value, pitch = uniforms.uPitch.value;
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
-      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
-      // world->viewer: world axes are (x, z_up, y) — build vector in that space
-      const v = new THREE.Vector3(wp.x - eye.x, wp.z - eye.z, wp.y - eye.y);
-      const dx = v.dot(right), dyv = v.dot(up), dz = v.dot(fwd);
-      if (dz <= 0.05) { h.el.style.display = 'none'; return; }   // behind camera
+      // ---- FLOOR-PINNED room marker.
+      // Provably-correct route: reuse the known-good hotspot screen projection with a
+      // pitch computed from true geometry: the marker sits on the floor at floor_dist,
+      // eye is eye_h above floor => screen pitch = -atan2(eye_h, floor_dist).
+      // World-anchoring across walk offsets: shift yaw by the viewer's walk so the
+      // marker stays fixed in the world as you drift (small offsets — linear approx).
+      const rc = roomCams[current && current.id];
+      if (!rc) { h.el.style.display = 'none'; return; }
+      const eyeH = rc.cam[2] - rc.floor;              // eye height above floor
+      const dist = h.floor_dist != null ? h.floor_dist : 2.6;
+      const basePitch = -Math.atan2(eyeH, dist);      // e.g. -0.88 rad at 1.2m
+      // walk parallax: as the viewer moves forward w (m) toward the marker, the marker's
+      // angular position steepens: pitch' = -atan2(eyeH, dist - w_parallel)
+      const yawRad = h.yaw;
+      let dy = yawRad - uniforms.uYaw.value;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      const fwd = Math.cos(dy) * walkPos.y;           // viewer forward component toward marker
+      const strafe = Math.sin(dy) * walkPos.x;
+      const eff = Math.max(0.4, dist - fwd);          // distance remaining to marker
+      const pitch = -Math.atan2(eyeH, Math.hypot(eff, strafe));
+      // screen projection (same tangent math as feature branch)
+      const dx = Math.tan(dy), dyp = Math.tan(pitch - uniforms.uPitch.value);
       const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
-      const sx = (dx / (tanF * uniforms.uAspect.value * dz) + 1) / 2;
-      const sy = (1 - dyv / (tanF * dz)) / 2;
-      const vis = sx > 0.01 && sx < 0.99 && sy > 0.01 && sy < 0.99;
+      const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
+      const sy = (1 - dyp / tanF) / 2;
+      const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98 && Math.abs(dy) < 1.2;
       h.el.style.display = vis ? 'block' : 'none';
       if (vis) {
-        // scale marker with distance (perspective-correct size)
-        const s = THREE.MathUtils.clamp(3.2 / dz, 0.55, 1.6);
+        const s = THREE.MathUtils.clamp(2.2 / dist, 0.6, 1.5);
         h.el.style.left = (sx * innerWidth) + 'px';
         h.el.style.top = (sy * innerHeight) + 'px';
         h.el.style.transform = `translate(-50%,-50%) scale(${s.toFixed(3)})`;
