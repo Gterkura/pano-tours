@@ -19,21 +19,24 @@
      "yaw": -2.4981,
      "pitch": 0.0,
      "icon": "\ud83d\udeaa",
-     "label": "To Dining"
+     "label": "To Dining",
+     "floor_dist": 4.0
     },
     {
      "to": "kitchen",
      "yaw": 2.6291,
      "pitch": -0.1392,
      "icon": "\ud83d\udeaa",
-     "label": "To Kitchen"
+     "label": "To Kitchen",
+     "floor_dist": 4.2
     },
     {
      "to": "living_room",
      "yaw": 1.7614,
      "pitch": 0.1,
      "icon": "\ud83d\udeaa",
-     "label": "To Family Lounge"
+     "label": "To Family Lounge",
+     "floor_dist": 3.6
     }
    ],
    "walk_clamp": 1.5
@@ -46,44 +49,26 @@
    "depth": "../living-room-premium/panos/depth_rgbd.png",
    "hotspots": [
     {
-     "yaw": 0.342,
-     "pitch": 0.05,
-     "icon": "\ud83d\udcfa",
-     "label": "Media Wall \u00b7 News"
-    },
-    {
      "yaw": -1.26,
      "pitch": -0.15,
      "icon": "\ud83d\udeaa",
      "label": "Corridor"
     },
     {
-     "to": "bedroom_2",
-     "yaw": -2.6243,
-     "pitch": -0.1399,
-     "icon": "\ud83d\udeaa",
-     "label": "To Bedroom 2"
-    },
-    {
      "to": "terrace_living",
      "yaw": 2.7769,
      "pitch": -0.0963,
      "icon": "\ud83d\udeaa",
-     "label": "To Main Living Room"
+     "label": "To Main Living Room",
+     "floor_dist": 3.6
     },
     {
      "to": "master_bedroom",
      "yaw": 2.8724,
      "pitch": -0.0994,
      "icon": "\ud83d\udeaa",
-     "label": "To Master Bedroom"
-    },
-    {
-     "to": "bedroom",
-     "yaw": 2.9709,
-     "pitch": -0.1016,
-     "icon": "\ud83d\udeaa",
-     "label": "To Bedroom"
+     "label": "To Master Bedroom",
+     "floor_dist": 3.2
     }
    ],
    "plan_xy": [
@@ -108,14 +93,16 @@
      "yaw": -0.9952,
      "pitch": -0.3099,
      "icon": "\ud83d\udeaa",
-     "label": "To Bathroom 2"
+     "label": "To Bathroom 2",
+     "floor_dist": 2.6
     },
     {
      "to": "living_room",
      "yaw": -0.155,
      "pitch": -0.1026,
      "icon": "\ud83d\udeaa",
-     "label": "To Family Lounge"
+     "label": "To Family Lounge",
+     "floor_dist": 3.2
     }
    ],
    "walk_clamp": 1.3
@@ -136,14 +123,16 @@
      "yaw": 2.9912,
      "pitch": -0.2911,
      "icon": "\ud83d\udeaa",
-     "label": "To Bathroom"
+     "label": "To Bathroom",
+     "floor_dist": 2.6
     },
     {
      "to": "living_room",
      "yaw": 2.2241,
      "pitch": -0.4558,
      "icon": "\ud83d\udeaa",
-     "label": "To Family Lounge"
+     "label": "To Family Lounge",
+     "floor_dist": 3.4
     }
    ],
    "walk_clamp": 1.1
@@ -164,7 +153,8 @@
      "yaw": 1.8589,
      "pitch": -0.1757,
      "icon": "\ud83d\udeaa",
-     "label": "To Family Lounge"
+     "label": "To Family Lounge",
+     "floor_dist": 3.4
     }
    ],
    "walk_clamp": 0.98
@@ -180,7 +170,8 @@
      "yaw": 0.9616,
      "pitch": -0.3078,
      "icon": "\ud83d\udeaa",
-     "label": "To Master Bedroom"
+     "label": "To Master Bedroom",
+     "floor_dist": 2.6
     }
    ],
    "walk_clamp": 0.8
@@ -201,7 +192,8 @@
      "yaw": -0.3821,
      "pitch": -0.1055,
      "icon": "\ud83d\udeaa",
-     "label": "To Dining"
+     "label": "To Dining",
+     "floor_dist": 3.0
     }
    ],
    "walk_clamp": 1.42
@@ -222,7 +214,8 @@
      "yaw": 0.1776,
      "pitch": -0.2472,
      "icon": "\ud83d\udeaa",
-     "label": "To Bedroom"
+     "label": "To Bedroom",
+     "floor_dist": 2.6
     }
    ],
    "walk_clamp": 1.22
@@ -243,14 +236,16 @@
      "yaw": 0.8992,
      "pitch": 0.0,
      "icon": "\ud83d\udeaa",
-     "label": "To Main Living Room"
+     "label": "To Main Living Room",
+     "floor_dist": 4.0
     },
     {
      "to": "kitchen",
      "yaw": 2.4543,
      "pitch": -0.1803,
      "icon": "\ud83d\udeaa",
-     "label": "To Kitchen"
+     "label": "To Kitchen",
+     "floor_dist": 3.0
     }
    ],
    "walk_clamp": 1.5

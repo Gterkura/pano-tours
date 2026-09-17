@@ -348,7 +348,7 @@ fetch(new URL('../tour-nav/room_cams.json', import.meta.url)).then(r => r.json()
 // so world bearing of view center = camRotZ, and world bearing at viewer yaw Y = camRotZ - Y.
 function markerWorldPos(h) {
   const rc = roomCams[current && current.id];
-  if (!rc) return null;
+  if (!rc) return null;   // no calibration -> caller hides marker (never falls back to floating)
   // distance: use hotspot pitch if it encodes one, else default 2.6m along the marker's yaw
   const dist = (h.floor_dist != null) ? h.floor_dist : 2.6;
   // marker bearing in world: viewer yaw of the hotspot relative to room yaw origin
