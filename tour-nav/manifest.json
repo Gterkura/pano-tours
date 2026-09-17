@@ -49,20 +49,20 @@
    "depth": "../living-room-premium/panos/depth_rgbd.png",
    "hotspots": [
     {
+     "to": "bedroom_2",
+     "yaw": -0.443,
+     "pitch": -0.2911,
+     "icon": "\ud83d\udeaa",
+     "label": "To Bedroom",
+     "floor_dist": 2.73
+    },
+    {
      "to": "terrace_living",
      "yaw": 2.7769,
      "pitch": -0.0963,
      "icon": "\ud83d\udeaa",
-     "label": "To Main Living Room",
+     "label": "To Lobby & Stairs",
      "floor_dist": 1.25
-    },
-    {
-     "to": "master_bedroom",
-     "yaw": 2.4224,
-     "pitch": -0.0994,
-     "icon": "\ud83d\udeaa",
-     "label": "To Master Bedroom",
-     "floor_dist": 1.26
     }
    ],
    "plan_xy": [
