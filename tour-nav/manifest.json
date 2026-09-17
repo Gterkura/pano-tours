@@ -20,15 +20,15 @@
      "pitch": 0.0,
      "icon": "\ud83d\udeaa",
      "label": "To Dining",
-     "floor_dist": 1.83
+     "floor_dist": 2.2
     },
     {
      "to": "kitchen",
-     "yaw": 2.6291,
+     "yaw": 3.2291,
      "pitch": -0.1392,
      "icon": "\ud83d\udeaa",
      "label": "To Kitchen",
-     "floor_dist": 3.02
+     "floor_dist": 2.92
     },
     {
      "to": "living_room",
@@ -36,7 +36,7 @@
      "pitch": 0.1,
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge",
-     "floor_dist": 2.68
+     "floor_dist": 2.87
     }
    ],
    "walk_clamp": 1.5
@@ -48,12 +48,6 @@
    "thumb": "thumbs/living_room.jpg",
    "depth": "../living-room-premium/panos/depth_rgbd.png",
    "hotspots": [
-    {
-     "yaw": -1.26,
-     "pitch": -0.15,
-     "icon": "\ud83d\udeaa",
-     "label": "Corridor"
-    },
     {
      "to": "terrace_living",
      "yaw": 2.7769,
