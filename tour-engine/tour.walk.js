@@ -341,7 +341,7 @@ function aimTo(yaw, pitch) {
 // ---- TRUE floor-pinning (v2): markers live at 3D world positions on the room floor.
 // Room camera calibration (from fix7): position, rotZ, floor Z. Loaded from room_cams.json.
 let roomCams = {};
-fetch(new URL('../tour-nav/room_cams.json', import.meta.url)).then(r => r.json()).then(j => { roomCams = j; }).catch(()=>{});
+fetch(new URL('../tour-nav/room_cams.json?cb=' + Date.now(), import.meta.url)).then(r => r.json()).then(j => { roomCams = j; }).catch(()=>{});
 // per-room yaw offset: the pano texture's yaw-0 direction vs world -Z, from the render rotZ.
 // Pano rendering convention (bth_depth_ray): world dir az measured from rotZ; the equirect
 // u=0.5 column looks along camera rotZ direction. In the viewer, yaw=0 shows u=0.5 center,
@@ -498,7 +498,7 @@ addEventListener('resize', () => {
 // ---------------------------------------------------------------- init
 (async function init() {
   const manifestUrl = (document.body.dataset.manifest) || 'manifest.json';
-  const man = await (await fetch(manifestUrl)).json();
+  const man = await (await fetch(manifestUrl + (manifestUrl.includes('?') ? '&' : '?') + 'cb=' + Date.now())).json();
   rooms = man.rooms || []; rooms.forEach(r => byId[r.id] = r);
   document.getElementById('brand').innerHTML = `<h1>${man.title || ''}</h1><p>${man.subtitle || ''}</p>`;
   buildDrawer();
