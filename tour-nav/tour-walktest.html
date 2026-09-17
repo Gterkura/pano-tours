@@ -23,6 +23,8 @@
   @keyframes floorPulse{0%,100%{box-shadow:0 0 10px rgba(120,220,255,.4)}50%{box-shadow:0 0 22px rgba(120,220,255,.75)}}
 
   #drawerBtn{position:fixed;bottom:22px;left:22px;z-index:12;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:12px;letter-spacing:1.5px;padding:10px 14px;border-radius:9px;cursor:pointer;backdrop-filter:blur(4px)}
+  #audioBtn{position:fixed;bottom:22px;right:22px;z-index:12;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:19px;border-radius:50%;cursor:pointer;backdrop-filter:blur(4px);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  #audioBtn:hover{border-color:#fff}
   #drawerBtn:hover{border-color:#fff}
   #drawer{position:fixed;left:0;right:0;bottom:0;z-index:11;display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px 16px 74px;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.86));backdrop-filter:blur(6px)}
   #drawer.open{display:grid}
@@ -53,6 +55,7 @@
 <div id="drawer"></div>
 <div id="minimap" style="display:none"><img id="mapImg" alt=""><div id="yih"><i id="yhArrow"></i><b></b></div><div class="cap">YOU ARE HERE</div></div>
 <div id="drawerBtn">▦ <span id="roomName">ROOMS</span></div>
+<div id="audioBtn" title="Sound on/off" aria-label="Toggle sound">🔊</div>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
 </script>
@@ -66,6 +69,23 @@
   let PLAN = null, mapReady = false;
   window.__mapUpdate = function(){ /* minimap removed */ };
   window.__onRoomChanged = function(room){ document.getElementById('roomName').textContent = (room.name||'ROOMS').toUpperCase(); };
+  // --- ambient audio: starts on first interaction (browser autoplay policy), sound-ON default (Philip),
+  // bottom-right corner button toggles mute. Survives room switches.
+  (function(){
+    const a=new Audio('ambient.m4a'); a.loop=true; a.preload='auto'; a.volume=0.55;
+    let started=false, muted=false;
+    const btn=document.getElementById('audioBtn');
+    function start(){ if(started) return; started=true;
+      a.play().then(()=>{ if(muted) a.muted=true; }).catch(()=>{ started=false; });
+    }
+    ['pointerdown','touchstart','keydown'].forEach(ev=>addEventListener(ev, start, {once:false, passive:true}));
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      muted=!muted; a.muted=muted;
+      btn.textContent = muted ? '🔇' : '🔊';
+      if(!started && !muted) start();
+    });
+  })();
   addEventListener('keydown', e=>{
     if(!window.__viewer || !order.length) return;
     const i = order.indexOf(window.__viewer.room);
