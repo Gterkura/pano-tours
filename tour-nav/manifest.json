@@ -35,7 +35,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge"
     }
-   ]
+   ],
+   "walk_clamp": 1.5
   },
   {
    "id": "living_room",
@@ -100,7 +101,8 @@
    "plan_xy": [
     5.599999904632568,
     2.0
-   ]
+   ],
+   "walk_clamp": 0.5
   },
   {
    "id": "master_bedroom",
@@ -127,7 +129,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge"
     }
-   ]
+   ],
+   "walk_clamp": 1.3
   },
   {
    "id": "bedroom",
@@ -154,7 +157,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge"
     }
-   ]
+   ],
+   "walk_clamp": 1.1
   },
   {
    "id": "bedroom_2",
@@ -174,7 +178,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge"
     }
-   ]
+   ],
+   "walk_clamp": 0.98
   },
   {
    "id": "bathroom_2",
@@ -189,7 +194,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Master Bedroom"
     }
-   ]
+   ],
+   "walk_clamp": 0.8
   },
   {
    "id": "kitchen",
@@ -209,7 +215,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Dining"
     }
-   ]
+   ],
+   "walk_clamp": 1.42
   },
   {
    "id": "bathroom_premium",
@@ -229,7 +236,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Bedroom"
     }
-   ]
+   ],
+   "walk_clamp": 1.22
   },
   {
    "id": "dining_premium",
@@ -256,7 +264,8 @@
      "icon": "\ud83d\udeaa",
      "label": "To Kitchen"
     }
-   ]
+   ],
+   "walk_clamp": 1.5
   }
  ],
  "plan": {
