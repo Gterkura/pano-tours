@@ -1,6 +1,7 @@
 // tour-engine/tour.walk.js — multi-room 360 viewer with RGBD depth parallax + walk-parallax.
-// Phase 2.2: WASD/arrows (desktop) + left-half virtual joystick (mobile/touch).
-// Left thumb = walk joystick (spawn-under-finger), right thumb = look (unchanged drag).
+// Phase 2.2 walk controls:
+//   Mobile: DOUBLE-TAP-AND-HOLD to walk forward in your gaze direction; release to stop. No UI.
+//   Desktop: WASD / arrow keys.
 // Per-room clamps from manifest walk_clamp. QA hook: window.__viewer
 import * as THREE from 'three';
 
@@ -18,8 +19,8 @@ const VERSION = 'nav-2-walk';
 const WALK_SPEED = 1.1;                // m/s
 const WALK_SMOOTH = 8.0;               // position easing rate (1/s)
 const WALK_DEFAULT_CLAMP = 1.5;
-const JOY_RADIUS = 56;                 // px, visual ring
-const JOY_DEAD = 0.12;                 // dead-zone fraction
+const DBLTAP_MS = 320;                 // double-tap window
+const DBLTAP_MOVE_PX = 14;             // taps must be near-stationary
 
 // ---------------------------------------------------------------- boot
 const app = document.getElementById('app');
@@ -96,8 +97,7 @@ scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
 
 // ---------------------------------------------------------------- state
 let rooms = [], byId = {}, current = null, pendingId = null;
-let dragging = false, lastX = 0, lastY = 0, dragId = -1;
-let joyId = -1, joyCx = 0, joyCy = 0, joyVX = 0, joyVY = 0;   // joystick
+let dragging = false, lastX = 0, lastY = 0;
 let targetYaw = 0, targetPitch = 0, targetPx = 0, targetPy = 0;
 let velYaw = 0, velPitch = 0, lastMoveT = 0, lastInputT = performance.now();
 let switching = false, mixStart = 0, switchToken = 0;
@@ -105,6 +105,9 @@ const keys = {};
 const walkPos = new THREE.Vector2(0, 0);
 const walkTarget = new THREE.Vector2(0, 0);
 let walkClamp = WALK_DEFAULT_CLAMP;
+// double-tap-and-hold walk (touch)
+let walking = false;                       // gaze-forward walk active
+let lastTapT = 0, lastTapX = 0, lastTapY = 0, tapArmed = false;
 
 const el = renderer.domElement;
 const hintEl = document.getElementById('hint');
@@ -123,51 +126,36 @@ function move(x, y) {
   velYaw = velYaw * 0.6 + (dYaw / dt) * 0.4;
   velPitch = velPitch * 0.6 + (dPitch / dt) * 0.4;
 }
-function up() { dragging = false; }
-
-// ---------------- unified pointer routing: left half = joystick, right half = look
-const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+function up() { dragging = false; walking = false; }   // any release stops the walk
 
 el.addEventListener('pointerdown', e => {
-  if (IS_TOUCH && e.pointerType === 'touch' && e.clientX < innerWidth * 0.45 && joyId < 0) {
-    joyId = e.pointerId;
-    joyCx = e.clientX; joyCy = e.clientY; joyVX = 0; joyVY = 0;
-    showJoy(joyCx, joyCy);
-    markInput();
-    return;
+  // double-tap detection (touch): second near-stationary tap within window arms the walk
+  if (e.pointerType === 'touch') {
+    const now = performance.now();
+    const near = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < DBLTAP_MOVE_PX;
+    if (tapArmed && (now - lastTapT) < DBLTAP_MS && near) {
+      walking = true;                    // HOLD: walk forward in gaze direction
+      tapArmed = false;
+      markInput();
+      return;                             // this press is the walk hold, not a look-drag
+    }
+    tapArmed = true;
+    lastTapT = now; lastTapX = e.clientX; lastTapY = e.clientY;
   }
-  dragId = e.pointerId;
   down(e.clientX, e.clientY);
 });
-addEventListener('pointermove', e => {
-  if (e.pointerId === joyId) {
-    let dx = e.clientX - joyCx, dy = e.clientY - joyCy;
-    const m = Math.hypot(dx, dy);
-    if (m > JOY_RADIUS) { dx *= JOY_RADIUS / m; dy *= JOY_RADIUS / m; }
-    joyVX = dx / JOY_RADIUS; joyVY = dy / JOY_RADIUS;
-    if (Math.hypot(joyVX, joyVY) < JOY_DEAD) { joyVX = 0; joyVY = 0; }
-    moveJoy(dx, dy);
-    markInput();
-    return;
-  }
-  if (e.pointerId === dragId) move(e.clientX, e.clientY);
-  else if (!IS_TOUCH) { /* mouse-move parallax handled below */ }
-});
-function endPointer(e) {
-  if (e.pointerId === joyId) { joyId = -1; joyVX = 0; joyVY = 0; hideJoy(); }
-  else if (e.pointerId === dragId) up();
-}
-addEventListener('pointerup', endPointer);
-addEventListener('pointercancel', endPointer);
+addEventListener('pointermove', e => move(e.clientX, e.clientY));
+addEventListener('pointerup', up);
+addEventListener('pointercancel', up);
 
 addEventListener('mousemove', e => {
-  if (dragging || IS_TOUCH) return;
+  if (dragging || e.pointerType === 'touch') return;
   markInput();
   targetPx = (e.clientX / innerWidth - .5) * 2 * PARALLAX_X;
   targetPy = (e.clientY / innerHeight - .5) * 2 * PARALLAX_Y;
 });
 let pinch0 = 0, fov0 = FOV_DEFAULT;
-el.addEventListener('touchstart', e => { if (e.touches.length === 2) { pinch0 = dist(e); fov0 = uniforms.uFov.value; } }, { passive: true });
+el.addEventListener('touchstart', e => { if (e.touches.length === 2) { pinch0 = dist(e); fov0 = uniforms.uFov.value; walking = false; } }, { passive: true });
 el.addEventListener('touchmove', e => { if (e.touches.length === 2) { markInput(); uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0 / dist(e), FOV_MIN, FOV_MAX); } }, { passive: true });
 function dist(e) { const a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
 addEventListener('wheel', e => { markInput(); uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY * 0.02, FOV_MIN, FOV_MAX); });
@@ -179,24 +167,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
-// ---------------- virtual joystick UI
-const joy = document.createElement('div');
-joy.id = 'walkJoy';
-joy.style.cssText = `position:fixed;display:none;z-index:40;pointer-events:none;
-  width:${JOY_RADIUS*2}px;height:${JOY_RADIUS*2}px;border-radius:50%;
-  border:2px solid rgba(255,255,255,.55);background:rgba(0,0,0,.18);
-  transform:translate(-50%,-50%);left:0;top:0;`;
-const knob = document.createElement('div');
-knob.style.cssText = `position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;
-  background:rgba(255,255,255,.75);transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.4);`;
-joy.appendChild(knob);
-document.body.appendChild(joy);
-function showJoy(x, y) { joy.style.display = 'block'; joy.style.left = x + 'px'; joy.style.top = y + 'px'; moveJoy(0, 0); }
-function moveJoy(dx, dy) { knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; }
-function hideJoy() { joy.style.display = 'none'; }
-
-function walkInput(dt) {
-  // keyboard
+function walkInput() {
   let f = 0, s = 0;
   if (keys['w'] || keys['arrowup']) f += 1;
   if (keys['s'] || keys['arrowdown']) f -= 1;
@@ -206,8 +177,7 @@ function walkInput(dt) {
     const n = Math.hypot(f, s);
     return { f: f / n, s: s / n };
   }
-  // joystick (screen up = forward)
-  if (joyId >= 0 && (joyVX || joyVY)) return { f: -joyVY, s: joyVX };
+  if (walking) return { f: 1, s: 0 };     // double-tap-and-hold: gaze-forward
   return { f: 0, s: 0 };
 }
 
@@ -237,6 +207,7 @@ async function switchTo(id, keepView = true) {
   if (!keepView) { targetYaw = 0; targetPitch = 0; }
   current = room; pendingId = null;
   walkTarget.set(0, 0); walkPos.set(0, 0);
+  walking = false;
   walkClamp = (room && room.walk_clamp) ? room.walk_clamp : WALK_DEFAULT_CLAMP;
   buildHotspots(room);
   if (window.__onRoomChanged) window.__onRoomChanged(room);
@@ -339,7 +310,7 @@ function tick() {
   }
   targetPitch = THREE.MathUtils.clamp(targetPitch, -PITCH_LIMIT, PITCH_LIMIT);
   // ---- walk integration
-  const wi = walkInput(dt);
+  const wi = walkInput();
   if (wi.f || wi.s) {
     markInput();
     const yaw = targetYaw;
@@ -397,7 +368,7 @@ window.__viewer = {
   get mix() { return uniforms.uMix.value; },
   get fov() { return uniforms.uFov.value; }, set fov(v) { uniforms.uFov.value = THREE.MathUtils.clamp(v, FOV_MIN, FOV_MAX); },
   get yaw() { return targetYaw; }, get pitch() { return targetPitch; },
-  get walk() { return { x: walkPos.x, y: walkPos.y, clamp: walkClamp, joystick: joyId >= 0, touch: IS_TOUCH }; },
+  get walk() { return { x: walkPos.x, y: walkPos.y, clamp: walkClamp, walking }; },
   walkTo(x, y) { walkTarget.set(THREE.MathUtils.clamp(x, -walkClamp, walkClamp), THREE.MathUtils.clamp(y, -walkClamp, walkClamp)); },
   hotspots() { return hotspotEls.map(h => ({ label: h.label, yaw: h.yaw, to: h.to || null })); },
   aim(y, p) { aimTo(y, p); },
