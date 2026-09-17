@@ -57,7 +57,7 @@
      "floor_dist": 2.73
     },
     {
-     "to": "terrace_living",
+     "to": "lobby",
      "yaw": 2.7769,
      "pitch": -0.0963,
      "icon": "\ud83d\udeaa",
@@ -243,6 +243,36 @@
     }
    ],
    "walk_clamp": 1.5
+  },
+  {
+   "id": "lobby",
+   "name": "Lobby & Stairs",
+   "pano": "../lobby-premium/panos/lobby.jpg",
+   "thumb": "thumbs/lobby.jpg",
+   "depth": "../lobby-premium/panos/depth_rgbd.png",
+   "plan_xy": [
+    5.8,
+    7.6
+   ],
+   "walk_clamp": 1.4,
+   "hotspots": [
+    {
+     "to": "living_room",
+     "yaw": 5.2003,
+     "pitch": -0.3,
+     "icon": "\ud83d\udeaa",
+     "label": "To Family Lounge",
+     "floor_dist": 2.5
+    },
+    {
+     "to": "terrace_living",
+     "yaw": 0.0,
+     "pitch": -0.3,
+     "icon": "\ud83d\udeaa",
+     "label": "Downstairs to Main Living",
+     "floor_dist": 2.8
+    }
+   ]
   }
  ],
  "plan": {
