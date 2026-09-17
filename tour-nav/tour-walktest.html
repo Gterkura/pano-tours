@@ -72,19 +72,25 @@
   // --- ambient audio: starts on first interaction (browser autoplay policy), sound-ON default (Philip),
   // bottom-right corner button toggles mute. Survives room switches.
   (function(){
-    const a=new Audio('ambient.m4a'); a.loop=true; a.preload='auto'; a.volume=0.55;
-    let started=false, muted=false;
+    const a=new Audio('ambient2.m4a'); a.loop=true; a.preload='auto'; a.volume=0.55;
+    let muted=false, armed=false;
     const btn=document.getElementById('audioBtn');
-    function start(){ if(started) return; started=true;
-      a.play().then(()=>{ if(muted) a.muted=true; }).catch(()=>{ started=false; });
+    // PLAY ON LOAD: begin playback muted immediately (allowed by browsers), unmute on first touch.
+    a.muted=true;
+    a.play().catch(()=>{ /* if even muted play is blocked, fall back to first-touch start */ });
+    function arm(){ if(armed) return; armed=true;
+      a.muted=muted;  // unmute (or stay muted if user pre-muted)
+      a.play().catch(()=>{});
     }
-    ['pointerdown','touchstart','keydown'].forEach(ev=>addEventListener(ev, start, {once:false, passive:true}));
+    ['pointerdown','touchstart','keydown'].forEach(ev=>addEventListener(ev, arm, {once:false, passive:true}));
     btn.addEventListener('click', e=>{
       e.stopPropagation();
+      armed=true;
       muted=!muted; a.muted=muted;
       btn.textContent = muted ? '🔇' : '🔊';
-      if(!started && !muted) start();
+      a.play().catch(()=>{});
     });
+    btn.textContent='🔊';
   })();
   addEventListener('keydown', e=>{
     if(!window.__viewer || !order.length) return;
