@@ -1,0 +1,74 @@
+{
+ "terrace_living": {
+  "cam": [
+   4.15,
+   6.45,
+   2.15
+  ],
+  "rotz": 0.0,
+  "floor": 0.2
+ },
+ "living_room": {
+  "cam": [
+   5.6,
+   2.0,
+   5.72
+  ],
+  "rotz": -52.7,
+  "floor": 0.2
+ },
+ "master_bedroom": {
+  "cam": [
+   5.0,
+   15.85,
+   5.75
+  ],
+  "rotz": 0.0,
+  "floor": 4.2
+ },
+ "bedroom": {
+  "cam": [
+   2.6,
+   9.4,
+   5.75
+  ],
+  "rotz": 0.0,
+  "floor": 4.2
+ },
+ "bedroom_2": {
+  "cam": [
+   1.25,
+   3.7,
+   5.75
+  ],
+  "rotz": 0.0,
+  "floor": 4.2
+ },
+ "kitchen": {
+  "cam": [
+   5.7,
+   14.5,
+   2.15
+  ],
+  "rotz": -111.8,
+  "floor": 0.2
+ },
+ "bathroom_premium": {
+  "cam": [
+   2.5,
+   13.0,
+   5.75
+  ],
+  "rotz": -64.0,
+  "floor": 4.2
+ },
+ "dining_premium": {
+  "cam": [
+   2.2,
+   8.0,
+   2.15
+  ],
+  "rotz": 0.0,
+  "floor": 0.2
+ }
+}

@@ -295,13 +295,8 @@ function buildHotspots(room) {
     });
     hsLayer.appendChild(d);
     // floor markers get floorPitch instead of hotspot pitch
-    hotspotEls.push({ el: d, ...h, pitch: isRoomLink ? FLOOR_PITCH_AT(h) : h.pitch });
+    hotspotEls.push({ el: d, ...h });
   });
-}
-// floor pinning: place marker at fixed screen pitch representing the floor a few meters ahead
-function FLOOR_PITCH_AT(h) {
-  // floor at ~1.55m below eye; marker ~2.5m ahead -> pitch ≈ -atan(1.55/2.5) ≈ -31.8deg
-  return -0.555;
 }
 // best-of-both room navigation:
 //  1) GLIDE phase: rotate view toward the target room's direction, drift walkTarget a
@@ -349,17 +344,91 @@ function aimTo(yaw, pitch) {
   targetPitch = THREE.MathUtils.clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
   velYaw = velPitch = 0;
 }
+// ---- TRUE floor-pinning (v2): markers live at 3D world positions on the room floor.
+// Room camera calibration (from fix7): position, rotZ, floor Z. Loaded from room_cams.json.
+let roomCams = {};
+fetch(new URL('../tour-nav/room_cams.json', import.meta.url)).then(r => r.json()).then(j => { roomCams = j; }).catch(()=>{});
+// per-room yaw offset: the pano texture's yaw-0 direction vs world -Z, from the render rotZ.
+// Pano rendering convention (bth_depth_ray): world dir az measured from rotZ; the equirect
+// u=0.5 column looks along camera rotZ direction. In the viewer, yaw=0 shows u=0.5 center,
+// so world bearing of view center = camRotZ, and world bearing at viewer yaw Y = camRotZ - Y.
+function markerWorldPos(h) {
+  const rc = roomCams[current && current.id];
+  if (!rc) return null;
+  // distance: use hotspot pitch if it encodes one, else default 2.6m along the marker's yaw
+  const dist = (h.floor_dist != null) ? h.floor_dist : 2.6;
+  // marker bearing in world: viewer yaw of the hotspot relative to room yaw origin
+  // hotspot h.yaw is the VIEWER yaw where the marker is centered at walkPos=0,
+  // i.e. world bearing = rc.rotz - h.yaw (deg)
+  const bearing = (rc.rotz - THREE.MathUtils.radToDeg(h.yaw)) * Math.PI / 180;
+  // walk offset shifts the camera in world; marker is fixed in world:
+  const camx = rc.cam[0] + walkPosWorld().x;
+  const camy = rc.cam[1] + walkPosWorld().y;
+  return {
+    x: camx + Math.cos(bearing) * dist,
+    y: camy + Math.sin(bearing) * dist,
+    z: rc.floor,                       // on the floor
+    camz: rc.cam[2],
+    camx, camy, bearing,
+  };
+}
+// viewer walk offset (x=right,y=fwd at yaw) to world dx,dy using room rotz frame:
+function walkPosWorld() {
+  const rc = roomCams[current && current.id];
+  if (!rc) return { x: 0, y: 0 };
+  // viewer yaw->world bearing: bearing = rotz - yawDeg. walkTarget was built view-relative;
+  // convert: world displacement = R(-rotz) applied to (walkPos.y fwd along -Z view)... 
+  // Simplest consistent model: walk +x viewer = world +Y at rotz=0... derive from same frame
+  // used to place markers so both agree: viewer forward (yaw Y) has world bearing (rotz - Ydeg).
+  const yawDeg = THREE.MathUtils.radToDeg(uniforms.uYaw.value);
+  const bF = (rc.rotz - yawDeg) * Math.PI / 180;         // forward bearing
+  const bR = bF - Math.PI / 2;                            // right bearing
+  return {
+    x: walkPos.y * Math.cos(bF) + walkPos.x * Math.cos(bR),
+    y: walkPos.y * Math.sin(bF) + walkPos.x * Math.sin(bR),
+  };
+}
 function projectHotspots() {
   hotspotEls.forEach(h => {
-    let dy = h.yaw - uniforms.uYaw.value;
-    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
-    const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
-    const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
-    const sy = (1 - dyp / tanF) / 2;
-    const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
-    h.el.style.display = vis ? 'block' : 'none';
-    if (vis) { h.el.style.left = (sx * innerWidth) + 'px'; h.el.style.top = (sy * innerHeight) + 'px'; }
+    if (h.to && h.floorPinned !== false) {
+      // ---- 3D floor projection
+      const wp = markerWorldPos(h);
+      if (!wp) { h.el.style.display = 'none'; return; }
+      // camera at (camx, camy, camz) looking with yaw uYaw, pitch uPitch, fov uFov
+      const eye = new THREE.Vector3(wp.camx, wp.camy, wp.camz);
+      const yaw = uniforms.uYaw.value, pitch = uniforms.uPitch.value;
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+      // world->viewer: world axes are (x, z_up, y) — build vector in that space
+      const v = new THREE.Vector3(wp.x - eye.x, wp.z - eye.z, wp.y - eye.y);
+      const dx = v.dot(right), dyv = v.dot(up), dz = v.dot(fwd);
+      if (dz <= 0.05) { h.el.style.display = 'none'; return; }   // behind camera
+      const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
+      const sx = (dx / (tanF * uniforms.uAspect.value * dz) + 1) / 2;
+      const sy = (1 - dyv / (tanF * dz)) / 2;
+      const vis = sx > 0.01 && sx < 0.99 && sy > 0.01 && sy < 0.99;
+      h.el.style.display = vis ? 'block' : 'none';
+      if (vis) {
+        // scale marker with distance (perspective-correct size)
+        const s = THREE.MathUtils.clamp(3.2 / dz, 0.55, 1.6);
+        h.el.style.left = (sx * innerWidth) + 'px';
+        h.el.style.top = (sy * innerHeight) + 'px';
+        h.el.style.transform = `translate(-50%,-50%) scale(${s.toFixed(3)})`;
+      }
+    } else {
+      // floating feature markers: classic projection
+      let dy = h.yaw - uniforms.uYaw.value;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      const dx = Math.tan(dy), dyp = Math.tan(h.pitch - uniforms.uPitch.value);
+      const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
+      const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
+      const sy = (1 - dyp / tanF) / 2;
+      const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98;
+      h.el.style.display = vis ? 'block' : 'none';
+      if (vis) { h.el.style.left = (sx * innerWidth) + 'px'; h.el.style.top = (sy * innerHeight) + 'px'; }
+    }
   });
 }
 
