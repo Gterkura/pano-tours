@@ -1,8 +1,9 @@
 // tour-engine/tour.walk.js — multi-room 360 viewer with RGBD depth parallax + walk-parallax.
 // Phase 2.2 walk controls:
-//   Mobile: DOUBLE-TAP-AND-HOLD to walk forward in your gaze direction; release to stop. No UI.
+//   Mobile: DOUBLE-TAP-AND-HOLD to walk forward in gaze direction; release to stop. No UI.
 //   Desktop: WASD / arrow keys.
-// Per-room clamps from manifest walk_clamp. QA hook: window.__viewer
+// v3 fixes: (a) iOS Safari double-tap-zoom swallowing the hold -> touch-action:none +
+//   non-passive touch handlers; (b) depth-edge distortion -> edge-aware shift damping.
 import * as THREE from 'three';
 
 // ---------------------------------------------------------------- constants
@@ -14,13 +15,13 @@ const AUTOROTATE_DELAY = 6.0, AUTOROTATE_SPEED = 8.0;
 const TRANSITION_S = 0.8;
 const DEPTH_MAX_METERS = 15.0;
 const PARALLAX_X = 0.22, PARALLAX_Y = 0.13;
-const VERSION = 'nav-2-walk';
+const VERSION = 'nav-2-walk2';
 // walk-parallax
 const WALK_SPEED = 1.1;                // m/s
-const WALK_SMOOTH = 8.0;               // position easing rate (1/s)
+const WALK_SMOOTH = 8.0;
 const WALK_DEFAULT_CLAMP = 1.5;
-const DBLTAP_MS = 320;                 // double-tap window
-const DBLTAP_MOVE_PX = 14;             // taps must be near-stationary
+const DBLTAP_MS = 320;
+const DBLTAP_MOVE_PX = 18;
 
 // ---------------------------------------------------------------- boot
 const app = document.getElementById('app');
@@ -74,10 +75,22 @@ vec3 sampleSide(sampler2D pano, sampler2D depth, vec3 dir){
   float cy = cos(uYaw), sy = sin(uYaw);
   vec2 w = vec2( uWalk.x *  cy + uWalk.y * sy,
                  -uWalk.x * sy + uWalk.y * cy );
-  vec2 shift = (uParallax + w * 6.0) * proximity * 0.04;
+
+  // --- edge-aware shift (v3): damp the walk component near depth discontinuities.
+  // Probe depth at +-2px around baseUv; a large spread = depth edge -> soften shift.
+  vec2 px = vec2(2.0 / 1024.0, 2.0 / 512.0);
+  float dL = decodeDepth(depth, baseUv - vec2(px.x, 0.0));
+  float dR = decodeDepth(depth, baseUv + vec2(px.x, 0.0));
+  float dU = decodeDepth(depth, baseUv - vec2(0.0, px.y));
+  float dD = decodeDepth(depth, baseUv + vec2(0.0, px.y));
+  float spread = max(max(abs(dR - dL), abs(dD - dU)), 0.0);
+  float edge = 1.0 - smoothstep(0.01, 0.06, spread);   // 1 = flat area, 0 = edge
+  // also scale total walk gain with proximity (near objects shift more) but cap it
+  vec2 total = uParallax + w * 2.2 * edge;             // was 6.0, no damping
+  vec2 shift = total * proximity * 0.04;
   vec2 uv = baseUv - shift;
   float d2 = decodeDepth(depth, uv);
-  uv = baseUv - (uParallax + w * 6.0) * (1.0 - d2) * 0.04;
+  uv = baseUv - total * (1.0 - d2) * 0.04;
   return texture2D(pano, uv).rgb;
 }
 void main(){
@@ -105,12 +118,19 @@ const keys = {};
 const walkPos = new THREE.Vector2(0, 0);
 const walkTarget = new THREE.Vector2(0, 0);
 let walkClamp = WALK_DEFAULT_CLAMP;
-// double-tap-and-hold walk (touch)
-let walking = false;                       // gaze-forward walk active
+let walking = false;
 let lastTapT = 0, lastTapX = 0, lastTapY = 0, tapArmed = false;
 
 const el = renderer.domElement;
 const hintEl = document.getElementById('hint');
+
+// v3: kill browser gesture hijacking on the canvas (iOS double-tap zoom, long-press menu)
+el.style.touchAction = 'none';
+el.style.webkitUserSelect = 'none';
+el.style.userSelect = 'none';
+el.addEventListener('contextmenu', e => e.preventDefault());
+// double-tap-zoom kill switch at document level (iOS <13 ignores touch-action on some versions)
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 
 function markInput() { lastInputT = performance.now(); }
 function down(x, y) { dragging = true; lastX = x; lastY = y; velYaw = velPitch = 0; lastMoveT = markInput(); hintEl && (hintEl.style.opacity = 0); }
@@ -126,18 +146,23 @@ function move(x, y) {
   velYaw = velYaw * 0.6 + (dYaw / dt) * 0.4;
   velPitch = velPitch * 0.6 + (dPitch / dt) * 0.4;
 }
-function up() { dragging = false; walking = false; }   // any release stops the walk
+function up() { dragging = false; walking = false; }
+
+// v3: non-passive touchstart on the canvas so preventDefault actually stops iOS
+// double-tap-zoom synthesis; pointer events remain for the interaction logic.
+el.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) e.preventDefault();       // stop iOS double-tap zoom synthesis
+}, { passive: false });
 
 el.addEventListener('pointerdown', e => {
-  // double-tap detection (touch): second near-stationary tap within window arms the walk
   if (e.pointerType === 'touch') {
     const now = performance.now();
     const near = Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < DBLTAP_MOVE_PX;
     if (tapArmed && (now - lastTapT) < DBLTAP_MS && near) {
-      walking = true;                    // HOLD: walk forward in gaze direction
+      walking = true;                    // hold = walk forward in gaze direction
       tapArmed = false;
       markInput();
-      return;                             // this press is the walk hold, not a look-drag
+      return;                             // this touch is the walk hold, NOT a look-drag
     }
     tapArmed = true;
     lastTapT = now; lastTapX = e.clientX; lastTapY = e.clientY;
@@ -155,9 +180,20 @@ addEventListener('mousemove', e => {
   targetPy = (e.clientY / innerHeight - .5) * 2 * PARALLAX_Y;
 });
 let pinch0 = 0, fov0 = FOV_DEFAULT;
-el.addEventListener('touchstart', e => { if (e.touches.length === 2) { pinch0 = dist(e); fov0 = uniforms.uFov.value; walking = false; } }, { passive: true });
-el.addEventListener('touchmove', e => { if (e.touches.length === 2) { markInput(); uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0 / dist(e), FOV_MIN, FOV_MAX); } }, { passive: true });
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+let pinchActive = false;
+
 function dist(e) { const a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+el.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    if (!pinchActive) { pinchActive = true; pinch0 = dist(e); fov0 = uniforms.uFov.value; }
+    markInput();
+    uniforms.uFov.value = THREE.MathUtils.clamp(fov0 * pinch0 / dist(e), FOV_MIN, FOV_MAX);
+    e.preventDefault();
+  }
+}, { passive: false });
+el.addEventListener('touchend', e => { if (e.touches.length < 2) pinchActive = false; });
+
 addEventListener('wheel', e => { markInput(); uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY * 0.02, FOV_MIN, FOV_MAX); });
 
 // keyboard walk (desktop)
@@ -177,7 +213,7 @@ function walkInput() {
     const n = Math.hypot(f, s);
     return { f: f / n, s: s / n };
   }
-  if (walking) return { f: 1, s: 0 };     // double-tap-and-hold: gaze-forward
+  if (walking) return { f: 1, s: 0 };
   return { f: 0, s: 0 };
 }
 
