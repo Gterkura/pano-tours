@@ -16,7 +16,7 @@
    "hotspots": [
     {
      "to": "dining_premium",
-     "yaw": -2.4981,
+     "yaw": -3.0543,
      "pitch": 0.0,
      "icon": "\ud83d\udeaa",
      "label": "To Dining",
@@ -24,7 +24,7 @@
     },
     {
      "to": "kitchen",
-     "yaw": 3.2291,
+     "yaw": -2.4958,
      "pitch": -0.1392,
      "icon": "\ud83d\udeaa",
      "label": "To Kitchen",
@@ -50,11 +50,18 @@
    "hotspots": [
     {
      "to": "lobby",
-     "yaw": 2.7769,
+     "yaw": -2.1118,
      "pitch": -0.0963,
      "icon": "\ud83d\udeaa",
      "label": "To Lobby & Stairs",
      "floor_dist": 1.25
+    },
+    {
+     "label": "To Bedroom 2",
+     "yaw": -1.7157,
+     "pitch": 0.0,
+     "to": "bedroom_2",
+     "floor_dist": 2.6
     }
    ],
    "plan_xy": [
@@ -250,7 +257,7 @@
    "hotspots": [
     {
      "to": "living_room",
-     "yaw": 5.2003,
+     "yaw": -2.1118,
      "pitch": -0.3,
      "icon": "\ud83d\udeaa",
      "label": "To Family Lounge",
@@ -263,6 +270,20 @@
      "icon": "\ud83d\udeaa",
      "label": "Downstairs to Main Living",
      "floor_dist": 2.8
+    },
+    {
+     "label": "To Bedroom",
+     "yaw": -2.6616,
+     "pitch": 0.0,
+     "to": "bedroom",
+     "floor_dist": 2.6
+    },
+    {
+     "label": "To Master Bedroom",
+     "yaw": -4.4646,
+     "pitch": 0.0,
+     "to": "master_bedroom",
+     "floor_dist": 2.6
     }
    ]
   }

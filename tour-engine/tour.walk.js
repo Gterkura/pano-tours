@@ -1,4 +1,4 @@
-// tour-engine/tour.walk.js — multi-room 360 viewer with RGBD depth parallax + walk-parallax.
+// tour-engine/tour.walk.js — multi-room 360 viewer, FLAT RGBD render (ALL parallax removed per Philip 2026-09-17: zero distortion tolerance).
 // Phase 2.2 walk controls:
 //   Mobile: DOUBLE-TAP-AND-HOLD to walk forward in gaze direction; release to stop. No UI.
 //   Desktop: WASD / arrow keys.
@@ -15,7 +15,7 @@ const AUTOROTATE_DELAY = 6.0, AUTOROTATE_SPEED = 8.0;
 const TRANSITION_S = 0.8;
 const DEPTH_MAX_METERS = 15.0;
 const PARALLAX_X = 0.22, PARALLAX_Y = 0.13;
-const VERSION = 'nav-2-walk3-noparallax';
+const VERSION = 'nav-2-walk4-flat-noparallax';
 // walk-parallax
 const WALK_SPEED = 1.1;                // m/s
 const WALK_SMOOTH = 8.0;
@@ -69,16 +69,9 @@ vec2 panoUvFor(vec3 dir){
   return vec2(u, v);
 }
 vec3 sampleSide(sampler2D pano, sampler2D depth, vec3 dir){
-  // v4: walk-parallax REMOVED (caused distortion near depth edges). Only the subtle
-  // mouse-parallax remains. Floor-marker navigation is the primary movement.
-  vec2 baseUv = panoUvFor(dir);
-  float sceneD = decodeDepth(depth, baseUv);
-  float proximity = 1.0 - sceneD;
-  vec2 shift = uParallax * proximity * 0.04;
-  vec2 uv = baseUv - shift;
-  float d2 = decodeDepth(depth, uv);
-  uv = baseUv - uParallax * (1.0 - d2) * 0.04;
-  return texture2D(pano, uv).rgb;
+  // v5: ALL parallax REMOVED (Philip: zero distortion tolerance). Render is flat,
+  // identical to a static photo — no walk-parallax, no mouse/depth shift.
+  return texture2D(pano, panoUvFor(dir)).rgb;
 }
 void main(){
   vec2 ndc = vUv * 2.0 - 1.0;
