@@ -15,7 +15,7 @@ const AUTOROTATE_DELAY = 6.0, AUTOROTATE_SPEED = 8.0;
 const TRANSITION_S = 0.8;
 const DEPTH_MAX_METERS = 15.0;
 const PARALLAX_X = 0.22, PARALLAX_Y = 0.13;
-const VERSION = 'nav-2-walk2';
+const VERSION = 'nav-2-walk3-noparallax';
 // walk-parallax
 const WALK_SPEED = 1.1;                // m/s
 const WALK_SMOOTH = 8.0;
@@ -69,28 +69,15 @@ vec2 panoUvFor(vec3 dir){
   return vec2(u, v);
 }
 vec3 sampleSide(sampler2D pano, sampler2D depth, vec3 dir){
+  // v4: walk-parallax REMOVED (caused distortion near depth edges). Only the subtle
+  // mouse-parallax remains. Floor-marker navigation is the primary movement.
   vec2 baseUv = panoUvFor(dir);
   float sceneD = decodeDepth(depth, baseUv);
   float proximity = 1.0 - sceneD;
-  float cy = cos(uYaw), sy = sin(uYaw);
-  vec2 w = vec2( uWalk.x *  cy + uWalk.y * sy,
-                 -uWalk.x * sy + uWalk.y * cy );
-
-  // --- edge-aware shift (v3): damp the walk component near depth discontinuities.
-  // Probe depth at +-2px around baseUv; a large spread = depth edge -> soften shift.
-  vec2 px = vec2(2.0 / 1024.0, 2.0 / 512.0);
-  float dL = decodeDepth(depth, baseUv - vec2(px.x, 0.0));
-  float dR = decodeDepth(depth, baseUv + vec2(px.x, 0.0));
-  float dU = decodeDepth(depth, baseUv - vec2(0.0, px.y));
-  float dD = decodeDepth(depth, baseUv + vec2(0.0, px.y));
-  float spread = max(max(abs(dR - dL), abs(dD - dU)), 0.0);
-  float edge = 1.0 - smoothstep(0.01, 0.06, spread);   // 1 = flat area, 0 = edge
-  // also scale total walk gain with proximity (near objects shift more) but cap it
-  vec2 total = uParallax + w * 2.2 * edge;             // was 6.0, no damping
-  vec2 shift = total * proximity * 0.04;
+  vec2 shift = uParallax * proximity * 0.04;
   vec2 uv = baseUv - shift;
   float d2 = decodeDepth(depth, uv);
-  uv = baseUv - total * (1.0 - d2) * 0.04;
+  uv = baseUv - uParallax * (1.0 - d2) * 0.04;
   return texture2D(pano, uv).rgb;
 }
 void main(){
@@ -395,22 +382,18 @@ function projectHotspots() {
       if (!rc) { h.el.style.display = 'none'; return; }
       const eyeH = rc.cam[2] - rc.floor;              // eye height above floor
       const dist = h.floor_dist != null ? h.floor_dist : 2.6;
-      const basePitch = -Math.atan2(eyeH, dist);      // e.g. -0.88 rad at 1.2m
-      // walk parallax: as the viewer moves forward w (m) toward the marker, the marker's
-      // angular position steepens: pitch' = -atan2(eyeH, dist - w_parallel)
+      // Facing-cone gate (Philip): marker visible ONLY when actually facing its direction.
+      // |dy| must be within half the horizontal FOV (with margin) — not a wide 1.2 rad.
       const yawRad = h.yaw;
       let dy = yawRad - uniforms.uYaw.value;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-      const fwd = Math.cos(dy) * walkPos.y;           // viewer forward component toward marker
-      const strafe = Math.sin(dy) * walkPos.x;
-      const eff = Math.max(0.4, dist - fwd);          // distance remaining to marker
-      const pitch = -Math.atan2(eyeH, Math.hypot(eff, strafe));
+      const pitch = -Math.atan2(eyeH, dist);          // fixed floor geometry, no walk drift
       // screen projection (same tangent math as feature branch)
       const dx = Math.tan(dy), dyp = Math.tan(pitch - uniforms.uPitch.value);
       const tanF = Math.tan(THREE.MathUtils.degToRad(uniforms.uFov.value) / 2);
       const sx = (dx / (tanF * uniforms.uAspect.value) + 1) / 2;
       const sy = (1 - dyp / tanF) / 2;
-      const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98 && Math.abs(dy) < 1.2;
+      const vis = sx > 0.02 && sx < 0.98 && sy > 0.02 && sy < 0.98 && Math.abs(dy) < 0.75;
       h.el.style.display = vis ? 'block' : 'none';
       if (vis) {
         const s = THREE.MathUtils.clamp(2.2 / dist, 0.6, 1.5);

@@ -49,14 +49,6 @@
    "depth": "../living-room-premium/panos/depth_rgbd.png",
    "hotspots": [
     {
-     "to": "bedroom_2",
-     "yaw": -0.443,
-     "pitch": -0.2911,
-     "icon": "\ud83d\udeaa",
-     "label": "To Bedroom",
-     "floor_dist": 2.73
-    },
-    {
      "to": "lobby",
      "yaw": 2.7769,
      "pitch": -0.0963,
