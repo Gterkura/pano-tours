@@ -18,6 +18,10 @@
   .hs:hover .dot{transform:scale(1.18)}
   .hs .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .2s}
   .hs:hover .lbl{opacity:1}
+  .hs-floor .dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(120,220,255,.9);background:radial-gradient(circle,rgba(120,220,255,.35),rgba(0,60,90,.25));box-shadow:0 0 14px rgba(120,220,255,.5);animation:floorPulse 2s infinite}
+  .hs-floor .lbl{color:#cdeeff}
+  @keyframes floorPulse{0%,100%{box-shadow:0 0 10px rgba(120,220,255,.4)}50%{box-shadow:0 0 22px rgba(120,220,255,.75)}}
+
   #drawerBtn{position:fixed;bottom:22px;left:22px;z-index:12;display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:12px;letter-spacing:1.5px;padding:10px 14px;border-radius:9px;cursor:pointer;backdrop-filter:blur(4px)}
   #drawerBtn:hover{border-color:#fff}
   #drawer{position:fixed;left:0;right:0;bottom:0;z-index:11;display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px 16px 74px;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.86));backdrop-filter:blur(6px)}

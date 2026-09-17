@@ -280,17 +280,67 @@ let hotspotEls = [];
 function buildHotspots(room) {
   hotspotEls.forEach(h => h.el.remove()); hotspotEls = [];
   (room.hotspots || []).forEach(h => {
+    // Room links (h.to) render as FLOOR-PINNED markers: projected to the floor plane at
+    // the direction the hotspot yaw points, at the room's walk distance. Tapping glides
+    // the camera toward that yaw (in-room glide) or crossfades to the target room.
+    // Feature markers (no h.to) stay as classic floating icons that aim the view.
     const d = document.createElement('div');
-    d.className = 'hs';
+    const isRoomLink = !!h.to;
+    d.className = isRoomLink ? 'hs hs-floor' : 'hs';
     d.innerHTML = `<div class="dot">${h.icon || '➜'}</div><div class="lbl">${h.label || ''}</div>`;
     d.addEventListener('click', ev => {
       ev.stopPropagation(); markInput();
-      if (h.to) { switchTo(h.to); }
+      if (h.to) { goToRoom(h.to); }          // floor marker: glide + transition
       else { aimTo(h.yaw, h.pitch); }
     });
     hsLayer.appendChild(d);
-    hotspotEls.push({ el: d, ...h });
+    // floor markers get floorPitch instead of hotspot pitch
+    hotspotEls.push({ el: d, ...h, pitch: isRoomLink ? FLOOR_PITCH_AT(h) : h.pitch });
   });
+}
+// floor pinning: place marker at fixed screen pitch representing the floor a few meters ahead
+function FLOOR_PITCH_AT(h) {
+  // floor at ~1.55m below eye; marker ~2.5m ahead -> pitch ≈ -atan(1.55/2.5) ≈ -31.8deg
+  return -0.555;
+}
+// best-of-both room navigation:
+//  1) GLIDE phase: rotate view toward the target room's direction, drift walkTarget a
+//     little forward (inside clamp — no distortion since we stay in the depth field).
+//  2) CROSSFADE: the standard 0.8s room transition completes the move.
+let gliding = false, glideStart = 0, glideYawFrom = 0, glideYawTo = 0, glideTarget = null;
+const GLIDE_MS = 900;
+function goToRoom(id) {
+  const room = byId[id];
+  if (!room || gliding || switching) return;
+  // find the hotspot yaw pointing to that room
+  const hs = (current.hotspots || []).find(h => h.to === id);
+  const targetYawAbs = hs ? hs.yaw : targetYaw;
+  gliding = true; glideStart = performance.now();
+  glideYawFrom = uniforms.uYaw.value;
+  let dy = targetYawAbs - glideYawFrom;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  glideYawTo = glideYawFrom + dy;
+  glideTarget = id;
+  // small forward drift toward the marker direction (clamped by room limit)
+  const fwd = Math.min(0.6, walkClamp);
+  // set walkTarget in the direction of dy AFTER the turn; simple: forward in final view dir
+  const yaw = glideYawTo;
+  walkTarget.x += -Math.sin(yaw) * fwd;
+  walkTarget.y += -Math.cos(yaw) * fwd;
+  const m = Math.hypot(walkTarget.x, walkTarget.y);
+  if (m > walkClamp) { walkTarget.x *= walkClamp / m; walkTarget.y *= walkClamp / m; }
+}
+function tickGlide() {
+  if (!gliding) return;
+  const t = Math.min((performance.now() - glideStart) / GLIDE_MS, 1);
+  const e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;   // easeInOutQuad
+  targetYaw = glideYawFrom + (glideYawTo - glideYawFrom) * e;
+  uniforms.uYaw.value = targetYaw;   // glide drives the view directly (snappy, intentional)
+  if (t >= 1) {
+    gliding = false;
+    switchTo(glideTarget, true);      // crossfade completes the room move; keeps view
+    glideTarget = null;
+  }
 }
 function aimTo(yaw, pitch) {
   let d = yaw - uniforms.uYaw.value;
@@ -345,6 +395,7 @@ function tick() {
     targetYaw += (AUTOROTATE_SPEED * Math.PI / 180) * dt;
   }
   targetPitch = THREE.MathUtils.clamp(targetPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  tickGlide();
   // ---- walk integration
   const wi = walkInput();
   if (wi.f || wi.s) {
