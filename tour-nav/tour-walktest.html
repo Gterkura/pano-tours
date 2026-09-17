@@ -78,6 +78,11 @@
     // PLAY ON LOAD: begin playback muted immediately (allowed by browsers), unmute on first touch.
     a.muted=true;
     a.play().catch(()=>{ /* if even muted play is blocked, fall back to first-touch start */ });
+    // Pause when tab hidden (Philip fix 09-17): audio must not outlive attention.
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.hidden){ a.pause(); }
+      else if(!muted && !userPaused){ a.play().catch(()=>{}); }
+    });
     function arm(){ if(armed) return; armed=true;
       a.muted=muted;  // unmute (or stay muted if user pre-muted)
       a.play().catch(()=>{});
