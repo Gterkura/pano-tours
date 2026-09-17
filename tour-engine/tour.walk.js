@@ -1,26 +1,25 @@
-// tour-engine/tour.js — multi-room 360 viewer with RGBD depth parallax + walk-parallax (v20260917w).
-// Phase 2.2: WASD / on-screen joystick walk up to per-room clamp, depth-driven occlusion parallax.
-// Prior: verified-against-reference control feel (2026-09-14): inertial drag (tau 0.38s),
-//   FOV 110 default (60..140), pitch limit ~73deg, autorotate 8 deg/s after 6s idle,
-//   0.8s crossfade transitions with view-merge. One writer per file. QA hook: window.__viewer
+// tour-engine/tour.walk.js — multi-room 360 viewer with RGBD depth parallax + walk-parallax.
+// Phase 2.2: WASD/arrows (desktop) + left-half virtual joystick (mobile/touch).
+// Left thumb = walk joystick (spawn-under-finger), right thumb = look (unchanged drag).
+// Per-room clamps from manifest walk_clamp. QA hook: window.__viewer
 import * as THREE from 'three';
 
 // ---------------------------------------------------------------- constants
 const FOV_DEFAULT = 110.0, FOV_MIN = 60.0, FOV_MAX = 140.0;
-const PITCH_LIMIT = 1.28;              // ~73deg, keeps equirect poles out of frame
+const PITCH_LIMIT = 1.28;
 const DRAG_YAW = 0.0032;
 const INERTIA_TAU = 0.38;
 const AUTOROTATE_DELAY = 6.0, AUTOROTATE_SPEED = 8.0;
-const TRANSITION_S = 0.8;              // matches loadscene(...,MERGE,BLEND(0.8))
+const TRANSITION_S = 0.8;
 const DEPTH_MAX_METERS = 15.0;
 const PARALLAX_X = 0.22, PARALLAX_Y = 0.13;
-const VERSION = 'nav-2-walk';          // Phase 2.2
+const VERSION = 'nav-2-walk';
 // walk-parallax
 const WALK_SPEED = 1.1;                // m/s
 const WALK_SMOOTH = 8.0;               // position easing rate (1/s)
-const WALK_MARGIN = 0.12;              // meters kept between clamped circle and wall
-const WALK_DEFAULT_CLAMP = 1.5;        // per-room fallback
-const WALK_MIN_CLAMP = 0.45;
+const WALK_DEFAULT_CLAMP = 1.5;
+const JOY_RADIUS = 56;                 // px, visual ring
+const JOY_DEAD = 0.12;                 // dead-zone fraction
 
 // ---------------------------------------------------------------- boot
 const app = document.getElementById('app');
@@ -45,8 +44,7 @@ const uniforms = {
   uRight: { value: new THREE.Vector3(1, 0, 0) },
   uUp: { value: new THREE.Vector3(0, 1, 0) },
   uDepthMax: { value: DEPTH_MAX_METERS },
-  uWalk: { value: new THREE.Vector2(0, 0) },      // walk offset (meters, room-plane x/y)
-  uWalkClamp: { value: WALK_DEFAULT_CLAMP },
+  uWalk: { value: new THREE.Vector2(0, 0) },
 };
 
 const FRAG = `
@@ -57,11 +55,11 @@ uniform float uMix;
 uniform vec2 uParallax;
 uniform float uYaw, uPitch, uFov, uAspect, uDepthMax;
 uniform vec3 uFwd, uRight, uUp;
-uniform vec2 uWalk;                    // meters walked (x = right, y = forward at anchor yaw 0)
+uniform vec2 uWalk;
 
 float decodeDepth(sampler2D tex, vec2 uv){
   vec4 t = texture2D(tex, uv);
-  return (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;   // 16-bit packed in R/G
+  return (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
 }
 vec2 panoUvFor(vec3 dir){
   float u = 0.5 - atan(dir.x, dir.z) / 6.28318530718;
@@ -69,17 +67,12 @@ vec2 panoUvFor(vec3 dir){
   return vec2(u, v);
 }
 vec3 sampleSide(sampler2D pano, sampler2D depth, vec3 dir){
-  // Walk offset in view space: move the RAY ORIGIN by uWalk projected on uRight/uUp-plane.
-  // For an equirect pano, translating the camera by (tx, ty) horizontally shifts each
-  // sample toward the direction of travel proportionally to how CLOSE the surface is:
-  //   uv shift = (walk . screenRight, 0) * proximity   (classic 2.5D re-projection)
   vec2 baseUv = panoUvFor(dir);
-  float sceneD = decodeDepth(depth, baseUv);      // 1.0 = far/sky
-  float proximity = 1.0 - sceneD;                 // near = 1
-  // walk term: project walk vector into screen space (yaw-relative), scaled by proximity
+  float sceneD = decodeDepth(depth, baseUv);
+  float proximity = 1.0 - sceneD;
   float cy = cos(uYaw), sy = sin(uYaw);
   vec2 w = vec2( uWalk.x *  cy + uWalk.y * sy,
-                 -uWalk.x * sy + uWalk.y * cy );  // rotate walk into view frame
+                 -uWalk.x * sy + uWalk.y * cy );
   vec2 shift = (uParallax + w * 6.0) * proximity * 0.04;
   vec2 uv = baseUv - shift;
   float d2 = decodeDepth(depth, uv);
@@ -103,14 +96,14 @@ scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
 
 // ---------------------------------------------------------------- state
 let rooms = [], byId = {}, current = null, pendingId = null;
-let dragging = false, lastX = 0, lastY = 0;
+let dragging = false, lastX = 0, lastY = 0, dragId = -1;
+let joyId = -1, joyCx = 0, joyCy = 0, joyVX = 0, joyVY = 0;   // joystick
 let targetYaw = 0, targetPitch = 0, targetPx = 0, targetPy = 0;
 let velYaw = 0, velPitch = 0, lastMoveT = 0, lastInputT = performance.now();
 let switching = false, mixStart = 0, switchToken = 0;
-// walk state
 const keys = {};
-const walkPos = new THREE.Vector2(0, 0);       // smoothed
-const walkTarget = new THREE.Vector2(0, 0);    // input target
+const walkPos = new THREE.Vector2(0, 0);
+const walkTarget = new THREE.Vector2(0, 0);
 let walkClamp = WALK_DEFAULT_CLAMP;
 
 const el = renderer.domElement;
@@ -132,11 +125,43 @@ function move(x, y) {
 }
 function up() { dragging = false; }
 
-el.addEventListener('pointerdown', e => down(e.clientX, e.clientY));
-addEventListener('pointermove', e => move(e.clientX, e.clientY));
-addEventListener('pointerup', up);
+// ---------------- unified pointer routing: left half = joystick, right half = look
+const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+el.addEventListener('pointerdown', e => {
+  if (IS_TOUCH && e.pointerType === 'touch' && e.clientX < innerWidth * 0.45 && joyId < 0) {
+    joyId = e.pointerId;
+    joyCx = e.clientX; joyCy = e.clientY; joyVX = 0; joyVY = 0;
+    showJoy(joyCx, joyCy);
+    markInput();
+    return;
+  }
+  dragId = e.pointerId;
+  down(e.clientX, e.clientY);
+});
+addEventListener('pointermove', e => {
+  if (e.pointerId === joyId) {
+    let dx = e.clientX - joyCx, dy = e.clientY - joyCy;
+    const m = Math.hypot(dx, dy);
+    if (m > JOY_RADIUS) { dx *= JOY_RADIUS / m; dy *= JOY_RADIUS / m; }
+    joyVX = dx / JOY_RADIUS; joyVY = dy / JOY_RADIUS;
+    if (Math.hypot(joyVX, joyVY) < JOY_DEAD) { joyVX = 0; joyVY = 0; }
+    moveJoy(dx, dy);
+    markInput();
+    return;
+  }
+  if (e.pointerId === dragId) move(e.clientX, e.clientY);
+  else if (!IS_TOUCH) { /* mouse-move parallax handled below */ }
+});
+function endPointer(e) {
+  if (e.pointerId === joyId) { joyId = -1; joyVX = 0; joyVY = 0; hideJoy(); }
+  else if (e.pointerId === dragId) up();
+}
+addEventListener('pointerup', endPointer);
+addEventListener('pointercancel', endPointer);
+
 addEventListener('mousemove', e => {
-  if (dragging || e.pointerType === 'touch') return;
+  if (dragging || IS_TOUCH) return;
   markInput();
   targetPx = (e.clientX / innerWidth - .5) * 2 * PARALLAX_X;
   targetPy = (e.clientY / innerHeight - .5) * 2 * PARALLAX_Y;
@@ -147,66 +172,74 @@ el.addEventListener('touchmove', e => { if (e.touches.length === 2) { markInput(
 function dist(e) { const a = e.touches[0], b = e.touches[1]; return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
 addEventListener('wheel', e => { markInput(); uniforms.uFov.value = THREE.MathUtils.clamp(uniforms.uFov.value + e.deltaY * 0.02, FOV_MIN, FOV_MAX); });
 
-// keyboard walk (WASD + arrows); walking axes are VIEW-relative
+// keyboard walk (desktop)
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ('wasd'.includes(k) || k.startsWith('arrow')) { keys[k] = true; markInput(); e.preventDefault(); }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
+// ---------------- virtual joystick UI
+const joy = document.createElement('div');
+joy.id = 'walkJoy';
+joy.style.cssText = `position:fixed;display:none;z-index:40;pointer-events:none;
+  width:${JOY_RADIUS*2}px;height:${JOY_RADIUS*2}px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.55);background:rgba(0,0,0,.18);
+  transform:translate(-50%,-50%);left:0;top:0;`;
+const knob = document.createElement('div');
+knob.style.cssText = `position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,.75);transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.4);`;
+joy.appendChild(knob);
+document.body.appendChild(joy);
+function showJoy(x, y) { joy.style.display = 'block'; joy.style.left = x + 'px'; joy.style.top = y + 'px'; moveJoy(0, 0); }
+function moveJoy(dx, dy) { knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; }
+function hideJoy() { joy.style.display = 'none'; }
+
 function walkInput(dt) {
+  // keyboard
   let f = 0, s = 0;
   if (keys['w'] || keys['arrowup']) f += 1;
   if (keys['s'] || keys['arrowdown']) f -= 1;
   if (keys['a'] || keys['arrowleft']) s -= 1;
   if (keys['d'] || keys['arrowright']) s += 1;
-  if (!f && !s) return { f: 0, s: 0 };
-  const n = Math.hypot(f, s);
-  return { f: f / n, s: s / n };
+  if (f || s) {
+    const n = Math.hypot(f, s);
+    return { f: f / n, s: s / n };
+  }
+  // joystick (screen up = forward)
+  if (joyId >= 0 && (joyVX || joyVY)) return { f: -joyVY, s: joyVX };
+  return { f: 0, s: 0 };
 }
 
 // ---------------------------------------------------------------- rooms + transitions
-function tex(url, srgb) {
-  const t = loader.load(url);
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.minFilter = t.magFilter = THREE.LinearFilter;
-  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  return t;
-}
 async function switchTo(id, keepView = true) {
   const room = byId[id];
   if (!room || (current && current.id === id)) return;
-  // Token: rapid taps — only the LAST requested switch may apply its textures.
   const myToken = ++switchToken;
   pendingId = id;
   const loadWithTimeout = (url, ms = 12000) => Promise.race([
     loader.loadAsync(url),
     new Promise((_, rej) => setTimeout(() => rej(new Error('load timeout ' + url)), ms))
   ]);
-  let pano = null, depth = null;
+  let pano = null;
   try { pano = await loadWithTimeout(room.pano); } catch (e) { console.error('pano load failed', room.pano, e); pano = null; }
   if (!pano) { pendingId = null; console.error('switchTo aborted: no pano for', id); return; }
-  if (myToken !== switchToken) return;   // a newer tap superseded this one
-  // Fold any half-finished transition into A, then arm a FRESH transition with the new pano in B.
+  if (myToken !== switchToken) return;
   uniforms.uPanoA.value = uniforms.uPanoB.value;
   uniforms.uDepthA.value = uniforms.uDepthB.value;
   uniforms.uPanoB.value = pano;
   uniforms.uPanoB.value.colorSpace = THREE.SRGBColorSpace;
-  // Depth streams in AFTER the pano is on screen — room appears instantly, parallax lands a beat later.
   uniforms.uDepthB.value = depthCache[id] || farPixel;
   uniforms.uDepthB.value.minFilter = uniforms.uDepthB.value.magFilter = THREE.LinearFilter;
   uniforms.uMix.value = 0;
   mixStart = performance.now();
-  switching = true;                       // arm ONLY now that B holds the new room
+  switching = true;
   if (!keepView) { targetYaw = 0; targetPitch = 0; }
   current = room; pendingId = null;
-  // Phase 2.2: reset walk on room change; clamp from manifest override or default
   walkTarget.set(0, 0); walkPos.set(0, 0);
   walkClamp = (room && room.walk_clamp) ? room.walk_clamp : WALK_DEFAULT_CLAMP;
-  uniforms.uWalkClamp.value = walkClamp;
   buildHotspots(room);
   if (window.__onRoomChanged) window.__onRoomChanged(room);
-  // non-blocking depth load + cache, then prefetch neighbours so next switch is instant
   loadWithTimeout(room.depth, 15000).then(d => {
     if (d) { d.minFilter = d.magFilter = THREE.LinearFilter; depthCache[id] = d;
       if (current === room) uniforms.uDepthB.value = d; }
@@ -234,7 +267,7 @@ function finishTransition() {
   switching = false;
 }
 
-// ---------------------------------------------------------------- hotspots (projected DOM)
+// ---------------------------------------------------------------- hotspots
 const hsLayer = document.getElementById('hotspots');
 let hotspotEls = [];
 function buildHotspots(room) {
@@ -245,15 +278,14 @@ function buildHotspots(room) {
     d.innerHTML = `<div class="dot">${h.icon || '➜'}</div><div class="lbl">${h.label || ''}</div>`;
     d.addEventListener('click', ev => {
       ev.stopPropagation(); markInput();
-      if (h.to) { switchTo(h.to); }          // room link
-      else { aimTo(h.yaw, h.pitch); }        // feature marker: turn to look at it
+      if (h.to) { switchTo(h.to); }
+      else { aimTo(h.yaw, h.pitch); }
     });
     hsLayer.appendChild(d);
     hotspotEls.push({ el: d, ...h });
   });
 }
 function aimTo(yaw, pitch) {
-  // choose the equivalent yaw nearest the current one so we never spin the long way
   let d = yaw - uniforms.uYaw.value;
   d = Math.atan2(Math.sin(d), Math.cos(d));
   targetYaw = uniforms.uYaw.value + d;
@@ -306,13 +338,12 @@ function tick() {
     targetYaw += (AUTOROTATE_SPEED * Math.PI / 180) * dt;
   }
   targetPitch = THREE.MathUtils.clamp(targetPitch, -PITCH_LIMIT, PITCH_LIMIT);
-  // ---- walk integration (Phase 2.2)
+  // ---- walk integration
   const wi = walkInput(dt);
   if (wi.f || wi.s) {
     markInput();
-    // view-relative: forward along current yaw, strafe perpendicular
     const yaw = targetYaw;
-    const fwdX = -Math.sin(yaw), fwdY = -Math.cos(yaw);   // matches uFwd at pitch 0 (x=-sin, z=-cos)
+    const fwdX = -Math.sin(yaw), fwdY = -Math.cos(yaw);
     const rightX = Math.cos(yaw), rightY = -Math.sin(yaw);
     walkTarget.x += (rightX * wi.s + fwdX * wi.f) * WALK_SPEED * dt;
     walkTarget.y += (rightY * wi.s + fwdY * wi.f) * WALK_SPEED * dt;
@@ -366,7 +397,7 @@ window.__viewer = {
   get mix() { return uniforms.uMix.value; },
   get fov() { return uniforms.uFov.value; }, set fov(v) { uniforms.uFov.value = THREE.MathUtils.clamp(v, FOV_MIN, FOV_MAX); },
   get yaw() { return targetYaw; }, get pitch() { return targetPitch; },
-  get walk() { return { x: walkPos.x, y: walkPos.y, clamp: walkClamp }; },
+  get walk() { return { x: walkPos.x, y: walkPos.y, clamp: walkClamp, joystick: joyId >= 0, touch: IS_TOUCH }; },
   walkTo(x, y) { walkTarget.set(THREE.MathUtils.clamp(x, -walkClamp, walkClamp), THREE.MathUtils.clamp(y, -walkClamp, walkClamp)); },
   hotspots() { return hotspotEls.map(h => ({ label: h.label, yaw: h.yaw, to: h.to || null })); },
   aim(y, p) { aimTo(y, p); },
