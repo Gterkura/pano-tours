@@ -316,14 +316,8 @@ function goToRoom(id) {
   dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   glideYawTo = glideYawFrom + dy;
   glideTarget = id;
-  // small forward drift toward the marker direction (clamped by room limit)
-  const fwd = Math.min(0.6, walkClamp);
-  // set walkTarget in the direction of dy AFTER the turn; simple: forward in final view dir
-  const yaw = glideYawTo;
-  walkTarget.x += -Math.sin(yaw) * fwd;
-  walkTarget.y += -Math.cos(yaw) * fwd;
-  const m = Math.hypot(walkTarget.x, walkTarget.y);
-  if (m > walkClamp) { walkTarget.x *= walkClamp / m; walkTarget.y *= walkClamp / m; }
+  // NO forward drift (Philip: drift-during-turn causes the distortion warp).
+  // Tap = clean turn only, then the 0.8s crossfade moves the room.
 }
 function tickGlide() {
   if (!gliding) return;

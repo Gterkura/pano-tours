@@ -52,18 +52,6 @@
      "label": "Media Wall \u00b7 News"
     },
     {
-     "yaw": 2.2,
-     "pitch": 0.15,
-     "icon": "\ud83d\udecb\ufe0f",
-     "label": "Lounge"
-    },
-    {
-     "yaw": -2.36,
-     "pitch": 0.55,
-     "icon": "\ud83d\udca1",
-     "label": "Chandelier"
-    },
-    {
      "yaw": -1.26,
      "pitch": -0.15,
      "icon": "\ud83d\udeaa",

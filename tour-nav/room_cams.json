@@ -6,7 +6,7 @@
    2.15
   ],
   "rotz": 0.0,
-  "floor": 0.2
+  "floor": 0.615
  },
  "living_room": {
   "cam": [
@@ -15,7 +15,7 @@
    5.72
   ],
   "rotz": -52.7,
-  "floor": 0.2
+  "floor": 4.22
  },
  "master_bedroom": {
   "cam": [
@@ -24,7 +24,7 @@
    5.75
   ],
   "rotz": 0.0,
-  "floor": 4.2
+  "floor": 4.207
  },
  "bedroom": {
   "cam": [
@@ -33,7 +33,7 @@
    5.75
   ],
   "rotz": 0.0,
-  "floor": 4.2
+  "floor": 4.22
  },
  "bedroom_2": {
   "cam": [
@@ -42,7 +42,7 @@
    5.75
   ],
   "rotz": 0.0,
-  "floor": 4.2
+  "floor": 4.22
  },
  "kitchen": {
   "cam": [
@@ -51,7 +51,7 @@
    2.15
   ],
   "rotz": -111.8,
-  "floor": 0.2
+  "floor": 0.6
  },
  "bathroom_premium": {
   "cam": [
@@ -69,6 +69,6 @@
    2.15
   ],
   "rotz": 0.0,
-  "floor": 0.2
+  "floor": 0.6
  }
 }
